@@ -32,9 +32,9 @@ if __name__ == "__main__":
     SERVICE_TIME = int(args.SERVICE_TIME)
     TW_WIDTH = int(args.TW_WIDTH)
 
-    # envs = create_batch_env(8, 5, test=False)
-    envs = create_batch_env(8, 213, test=True)
-    #envs = create_batch_env(1, 5, test=False)
+    # envs = create_batch_env(8, 213, test=False)
+    #envs = create_batch_env(8, 213, test=True)
+    # envs = create_batch_env(1, 5, test=False)
     #print(envs)
     # envs = vsp_env.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     model = model.to(device)
 
     # model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest.model"))
-    train(model=model,envs=envs,epochs=100,n_rollout=20,rollout_steps=10,train_steps=10,n_remove=20)
+    train(model=model,envs=envs,epochs=1000,n_rollout=4 ,rollout_steps=2,train_steps=5,n_remove=213)
     #torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-latest.model")
 
     stop = timeit.default_timer()

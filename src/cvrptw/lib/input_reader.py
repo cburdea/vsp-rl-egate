@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
+import random
 from tabulate import tabulate
 from datetime import datetime
-from arguments import args
+#from arguments import args
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
-args = args()
+#args = args()
 
 
 class Timetable:
@@ -60,6 +61,9 @@ def create_timetable_from_file(path):
     for i in range(0, len(content_seperated)):
         for j in range (0, len(content_seperated[i])):
             content_seperated[i][j] = content_seperated[i][j].split(';')
+
+    for elem in content_seperated:
+        print(tabulate(elem))
 
     return content_seperated
 
@@ -259,7 +263,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     alpha_T = (final_T / init_T) ** (1.0 / N_STEPS)
 
     v = {
-        "cap": vehicle_cap,
+        "cap": 1,
         "tw": {
             "start": 0,
             "end": 999999,
@@ -268,8 +272,8 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "end_loc": depot_id,
         "fee_per_dist": 1,
         "fee_per_time": 0,
-        "fixed_cost": 0,
-        "handling_cost_per_weight": 1.0,
+        "fixed_cost": 200000,
+        "handling_cost_per_weight": 0.0,
         "max_stops": 0,
         "max_dist": 0,
     }
@@ -284,7 +288,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "c1": 10,
         "adjs": adjs,
         "temperature": 100,
-        "c2": alpha_T,
+        "c2": 0.1,
         "sa": True,
     }
 
@@ -292,4 +296,56 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     print(input_data)
     return input_data, 0
 
-#print(create_vsp_env_from_file("../vsp_data/Fahrplan_213_1_1_L.txt"))
+def read_optimal_solution(path):
+    print('Reading solved vehicle scheduling...')
+    with open(path) as f:
+        content = f.readlines()
+    # you may also want to remove whitespace characters like `\n` at the end of each line
+    content = [x.strip() for x in content]
+
+    content_seperated = []
+    seperated_block = []
+
+    reading_block = False
+
+    # seperates content blocks of files
+    for r in content:
+        if r[0] == "$":
+            reading_block = True
+        if r[0] == "*":
+            reading_block = False
+            if len(r) > 1:
+                if r[1] == '$':
+                    reading_block = True
+
+        if reading_block:
+            seperated_block.append(r)
+        else:
+            if seperated_block != []:
+                content_seperated.append(seperated_block)
+                seperated_block = []
+        if r == content[-1] and reading_block:
+            content_seperated.append(seperated_block)
+
+    # seperates list elements by ; to create elementar instances
+    for i in range(0, len(content_seperated)):
+        for j in range(0, len(content_seperated[i])):
+            content_seperated[i][j] = content_seperated[i][j].split(';')
+
+    blocks = content_seperated[0]
+    blockelement = content_seperated[1]
+
+    return blocks, blockelement
+
+
+def calculate_costs_from_blockelement(blockelement, vehicle_cost, km_cost):
+
+
+
+    return 0
+
+blocks, blockelement = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
+
+create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
+print(tabulate(blocks))
+#print(tabulate(blockelement))
