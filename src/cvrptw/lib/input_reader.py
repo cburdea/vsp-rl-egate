@@ -3,10 +3,10 @@ import numpy as np
 import random
 from tabulate import tabulate
 from datetime import datetime
-#from arguments import args
+from arguments import args
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
-#args = args()
+args = args()
 
 
 class Timetable:
@@ -62,8 +62,8 @@ def create_timetable_from_file(path):
         for j in range (0, len(content_seperated[i])):
             content_seperated[i][j] = content_seperated[i][j].split(';')
 
-    for elem in content_seperated:
-        print(tabulate(elem))
+    #for elem in content_seperated:
+    #    print(tabulate(elem))
 
     return content_seperated
 
@@ -172,23 +172,23 @@ def get_dist_time(i_id, j_id, connections):
     if i_id == j_id:
         dist = 0
         time = 0
+        return 0,0
     else:
-        connection = connections.loc[connections['FromStopID'] == i_id]
-        connection = connection.loc[connection['ToStopID'] == j_id]
+        connection_from = connections.loc[connections['FromStopID'] == i_id]
+        connection_comp = connection_from.loc[connection_from['ToStopID'] == j_id]
         # print(connection)
         try:
-            dist = connection.loc[:, 'Distance'].item()
-            time = connection.loc[:, 'RunTime'].item()
+            dist = connection_comp.loc[:, 'Distance'].item()
+            time = connection_comp.loc[:, 'RunTime'].item()
+            return dist, time
            # print(time)
            # print('---')
         except:
-            print(i_id)
-            print(j_id)
-            print(connection)
-            print()
-
-
-    return dist, time
+            #print(i_id)
+            #print(j_id)
+            #print(connection_from)
+            #print(connection_comp)
+            return False, False
 
 
 def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
@@ -296,6 +296,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     print(input_data)
     return input_data, 0
 
+
 def read_optimal_solution(path):
     print('Reading solved vehicle scheduling...')
     with open(path) as f:
@@ -333,19 +334,46 @@ def read_optimal_solution(path):
             content_seperated[i][j] = content_seperated[i][j].split(';')
 
     blocks = content_seperated[0]
-    blockelement = content_seperated[1]
+    blockelements = content_seperated[1]
 
-    return blocks, blockelement
-
-
-def calculate_costs_from_blockelement(blockelement, vehicle_cost, km_cost):
+    return blocks, blockelements
 
 
+def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_cost, km_cost):
 
-    return 0
+    vehicle_costs = len(blocks) * vehicle_cost
+    dist_costs = 0
 
-blocks, blockelement = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
+    blockelements = np.asarray(blockelements)
+    blockelements = np.transpose(blockelements)
 
-create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
-print(tabulate(blocks))
-#print(tabulate(blockelement))
+    dataset = pd.DataFrame({'BlockID': blockelements[0][1:]})
+
+    for i in range(1, len(blockelements)):
+        dataset[blockelements[i][0]] = blockelements[i][1:]
+
+    dataset['BlockID'] = dataset['BlockID'].astype(int)
+    dataset['FromStopID'] = dataset['FromStopID'].astype(int)
+    dataset['ToStopID'] = dataset['ToStopID'].astype(int)
+    dataset['ElementType'] = dataset['ElementType'].astype(int)
+
+    for index, row in dataset.iterrows():
+        if row['ElementType'] != 1:
+            dep_id = row['FromStopID']
+            arr_id = row['ToStopID']
+            trip_dist, trip_time = get_dist_time(dep_id, arr_id, connections)
+            dist_costs += trip_dist * km_cost
+
+    return vehicle_costs + dist_costs
+
+
+
+#blocks, blockelements = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
+
+# timetable = create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
+# connections = convert_connections_to_df(timetable)
+
+# print(tabulate(blocks))
+# print(tabulate(blockelements))
+
+# print(calculate_costs_from_solution(blocks, blockelements, connections, 200000, 1))

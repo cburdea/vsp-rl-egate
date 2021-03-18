@@ -511,7 +511,8 @@ def train(model,envs,epochs,n_rollout,rollout_steps,train_steps,n_remove=10):
         for j in range(train_steps):
             train_once(model,opt,dl,epoch,0)
 
-        print ("=================>>>>>>>> mean cost:",np.mean([env.cost for env in envs.envs]))
+        mean = np.mean([env.cost for env in envs.envs])
+        print("=================>>>>>>>> mean cost: {} - optimality gap: {}".format(mean,mean / 2958186))
 
         if epoch % 10 == 0:
             eval_random(3,envs,n_rollout*rollout_steps+pre_steps)
