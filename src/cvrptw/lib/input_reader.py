@@ -210,8 +210,8 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "id": index,
         "loc": loc,
         "name": str(index),
-        "x": 0,
-        "y": 0,
+        "x": 1,
+        "y": 1,
         "weight": 0,
         "tw": {
             "start": row['DepTime'],
@@ -229,6 +229,8 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     service_trips_depot = service_trips_depot.set_index('ID')
     service_trips_depot['FromStopID'] = depot_id
     service_trips_depot['ToStopID'] = depot_id
+    service_trips_depot['x'] = 0
+    service_trips_depot['y'] = 0
     service_trips_depot = service_trips_depot.append(service_trips)
 
     # Initialize dist_time
@@ -278,6 +280,8 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "max_dist": 0,
     }
 
+    print('alpha_t: ',alpha_T)
+
     input_data = {
         "vehicles": [v],
         "dist_time": dist_time,
@@ -288,12 +292,12 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "c1": 10,
         "adjs": adjs,
         "temperature": 100,
-        "c2": 0.1,
-        "sa": True,
+        "c2": alpha_T,
+        "sa": False, #Simulated Annealing
     }
 
 
-    print(input_data)
+    #print(input_data)
     return input_data, 0
 
 

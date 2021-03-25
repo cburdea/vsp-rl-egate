@@ -1,0 +1,12 @@
+# Ist es möglich Kanten zu maskieren?
+# Ist es möglich auf verschieden großen Probleminstanzen zu trainieren?
+# Macht es Sinn die Linien zu hinterlegen?
+# Herausfinden, was adjs macht
+# Herausfinden, wie Lösungen generiert werden
+# Herausfinden, wie das Depot markiert wird
+# Unterschied n_rollout und rollout_steps herausfinden
+# Unterschied zwischen Epoche und Learn Steps klären
+# Model um Input Dimensionen reduzieren
+# Klären was die Pre-Steps im Training sind
+# Soll eine vordefinierte MaxDistanz angegeben werden wie im Original oder jeweils auf das vorliegende Problem genormt?
+# Forward Shift klären
