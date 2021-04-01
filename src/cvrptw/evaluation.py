@@ -9,8 +9,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data,DataLoader
 from lib.utils_eval import read_input, create_batch_env, roll_out
+import lib.input_reader as reader
 from lib.egate_model import Model
 from arguments import args
+import gc
 import argparse
 
 if __name__ == "__main__":
@@ -36,7 +38,12 @@ if __name__ == "__main__":
     model = model.to(device)
     model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest.model"))
 
-    inputs = read_input("data/vrptw_99.npy")
+    # inputs = read_input("data/vrptw_99.npy")
+
+    # print(inputs)
+
+    inputs , raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
+
 
     def eval(batch_size, n_steps=100, instance=None):
         envs = create_batch_env(batch_size, 99, instance=instance)
@@ -50,8 +57,23 @@ if __name__ == "__main__":
         return best_cost, np.array(history), actions, values
 
     ave_cost = []
+    cost, _, _, _ = eval(batch_size=1, n_steps=N_STEPS, instance=[inputs, raw])
+
+    '''
     for i, [data, raw] in enumerate(inputs):
+        gc.collect()
         print("instance " + str(i))
-        cost, _, _, _ = eval(batch_size=batch_size, n_steps=N_STEPS, instance=[data, raw])
+        cost, _, _, _ = eval(batch_size=1, n_steps=N_STEPS, instance=[data, raw])
         ave_cost.append(cost)
     print("ave_cost", np.mean(ave_cost))
+    '''
+'''
+    for i, [data, raw] in enumerate(inputs):
+        print(data)
+        print(raw)
+        gc.collect()
+        print("instance " + str(i))
+        cost, _, _, _ = eval(batch_size=1, n_steps=N_STEPS, instance=[data, 0])
+        ave_cost.append(cost)
+    print("ave_cost", np.mean(ave_cost))
+'''

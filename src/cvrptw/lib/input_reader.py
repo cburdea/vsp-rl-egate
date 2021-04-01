@@ -3,9 +3,10 @@ import numpy as np
 import random
 from tabulate import tabulate
 from datetime import datetime
-from arguments import args
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
+
+from arguments import args
 args = args()
 
 
@@ -196,19 +197,21 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     timetable = create_timetable_from_file(path)
 
     service_trips = convert_timetable_to_df(timetable)
-    #service_trips = service_trips[:10]
+    service_trips = service_trips[:50]
+    print(service_trips.head())
     connections = convert_connections_to_df(timetable)
+    print(connections.head())
     service_trips['service_id'] = service_trips.index.values
 
     # Initialize jobs
     # TODO: implement line. Check whether name or loc can be used for this
     # TODO: Check, what impact the time windows have on the calculation. Is it possible to just use the edges?
     jobs = []
-    loc = 1
+    loc_counter = 1
     for index, row in service_trips.iterrows():
         jobs.append({
         "id": index,
-        "loc": loc,
+        "loc": loc_counter,
         "name": str(index),
         "x": 1,
         "y": 1,
@@ -220,10 +223,9 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "service_time": row['ArrTime'] - row['DepTime'],
         "job_type": "Pickup",
         })
-    loc += 1
+        loc_counter += 1
 
-    amount_nodes = len(jobs)
-
+    # Add depot
     service_trips_depot = service_trips[1:2].copy()
     service_trips_depot['ID'] = 0
     service_trips_depot = service_trips_depot.set_index('ID')
@@ -235,15 +237,16 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
 
     # Initialize dist_time
     # TODO: Check, if it is possible to leave out edges
+    amount_nodes = len(jobs)
     dist_time = []
     for index_i, row_i in service_trips_depot.iterrows():
         service_i_dist_time = []
         for index_j, row_j in service_trips_depot.iterrows():
             start = row_i['ToStopID']
             end = row_j['FromStopID']
-            dist, time = get_dist_time(start,end, connections)
+            dist, time = get_dist_time(start, end, connections)
             service_i_dist_time.append({
-                'dist': dist,
+                'dist': float(dist),
                 'time': time/60
             })
         dist_time.append(service_i_dist_time)
@@ -252,12 +255,15 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     # Initialize adjs
     # TODO: Figure out what the purpose of adjs is
     adjs = []
+
     for i, job in enumerate(jobs):
-        l = [(_job['id'], dist_time[job['loc']][_job['loc']]['dist']) for j, _job in enumerate(jobs)]
+        #l = [(_job['id'], dist_time[job['loc']][_job['loc']]['dist']) for j, _job in enumerate(jobs)]
+        #print(l)
+        l = [(j, dist_time[job['loc']][_job['loc']]['dist']) for j, _job in enumerate(jobs)]
+       # print(l)
         l = sorted(l, key=lambda x: x[1])
         l = [x[0] for x in l]
         adjs.append(l)
-
 
     N_STEPS = int(args.N_STEPS)
     init_T = float(args.init_T)
@@ -265,14 +271,14 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     alpha_T = (final_T / init_T) ** (1.0 / N_STEPS)
 
     v = {
-        "cap": 1,
+        "cap": 100,
         "tw": {
             "start": 0,
-            "end": 999999,
+            "end": 1440,
         },
-        "start_loc": depot_id,
-        "end_loc": depot_id,
-        "fee_per_dist": 1,
+        "start_loc": 0,
+        "end_loc": 0,
+        "fee_per_dist": 1.0,
         "fee_per_time": 0,
         "fixed_cost": 200000,
         "handling_cost_per_weight": 0.0,
@@ -280,7 +286,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "max_dist": 0,
     }
 
-    print('alpha_t: ',alpha_T)
+    # print('alpha_t: ',alpha_T)
 
     input_data = {
         "vehicles": [v],
@@ -293,11 +299,9 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "adjs": adjs,
         "temperature": 100,
         "c2": alpha_T,
-        "sa": False, #Simulated Annealing
+        "sa": True, #Simulated Annealing
     }
 
-
-    #print(input_data)
     return input_data, 0
 
 
@@ -371,13 +375,22 @@ def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_co
     return vehicle_costs + dist_costs
 
 
+def check_input_consistency(tour_loc, jobs, connections, vehicle_cost, km_cost):
+    print('#######################################')
+    print('Consistency check:')
+    print('Total jobs: ', 0)
+    print('Total blocks: ', len(tour_loc))
+    print('Total cost: ', 0)
+    print('#######################################')
 
-#blocks, blockelements = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
 
-# timetable = create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
-# connections = convert_connections_to_df(timetable)
+if __name__ == "__main__":
+    blocks, blockelements = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
 
-# print(tabulate(blocks))
-# print(tabulate(blockelements))
+    timetable = create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
+    connections = convert_connections_to_df(timetable)
 
-# print(calculate_costs_from_solution(blocks, blockelements, connections, 200000, 1))
+    print(tabulate(blocks))
+    print(tabulate(blockelements))
+
+    print(calculate_costs_from_solution(blocks, blockelements, connections, 200000, 1))

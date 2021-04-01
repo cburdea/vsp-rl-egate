@@ -10,16 +10,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data, DataLoader
 from lib.rms import RunningMeanStd
-from arguments import args
+from arguments_org import args
 import lib.input_reader as vsp_env
+import csv
 import argparse
 
 args = args()
 
 device = torch.device(args.device)
-N_JOBS = int(args.N_JOBS)
+# N_JOBS = int(args.N_JOBS)
 CAP = int(args.CAP)
-batch_size = int(args.BATCH)
+#batch_size = int(args.BATCH)
+#batch_size = 1
 MAX_COORD = int(args.MAX_COORD)
 MAX_DIST = float(args.MAX_DIST)
 LR = float(args.LR)
@@ -27,8 +29,6 @@ DEPOT_END = int(args.DEPOT_END)
 SERVICE_TIME = int(args.SERVICE_TIME)
 TW_WIDTH = int(args.TW_WIDTH)
 
-N_ROLLOUT = int(args.N_ROLLOUT)
-ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
 N_STEPS = int(args.N_STEPS)
 
 init_T = float(args.init_T)
@@ -95,6 +95,8 @@ def create_instance(n_nodes=100, n_clusters=None):
     coords = random_cvrp(n_nodes, n_clusters=n_clusters)
     raw = coords
     coords = coords.tolist()
+    # print(coords)
+    # print(len(coords))
 
     #     print ("coords len:",len(coords))
 
@@ -170,13 +172,7 @@ def create_instance(n_nodes=100, n_clusters=None):
         "sa": True,
     }
 
-    # print(adjs)
-
-    # for elem in dist_time:
-    #    print(elem)
-
-    # print(input_data)
-    return input_data, raw
+    return input_data, 0# raw
 
 
 def create_env(n_jobs, _input=None, test=True):
@@ -210,8 +206,11 @@ def create_env(n_jobs, _input=None, test=True):
             # {'dist': 8.5440034866333, 'time': 8.5440034866333, 'stops': 1, 'time_slack': 9615.22138046875, 'wait_time': 0.0, 'service_time': 0.0, 'loc': 2, 'weight': 8.0}
             states = self.env.states()
             tours = self.env.tours()
+            self.vsp_tours = self.env.tours()
             jobs = self.input['jobs']
+            self.vsp_jobs = self.input['jobs']
             depot = self.input['depot']
+
 
             nodes = np.zeros((self.n_jobs + 1, 8))
             edges = np.zeros((self.n_jobs + 1, self.n_jobs + 1, 1))
@@ -276,7 +275,7 @@ def create_batch_env(batch_size, n_jobs, test=True):
             envs = []
             for i in range(0, batch_size):
                 envs.append(e)
-            print(len(envs))
+            # print(len(envs))
             self.envs = envs
 
         def reset(self):
@@ -296,7 +295,7 @@ def create_batch_env(batch_size, n_jobs, test=True):
     return BatchEnv(batch_size)
 
 
-def create_replay_buffer(n_jobs):
+def create_replay_buffer(n_jobs, batch_size):
     class Buffer(object):
         def __init__(self, n_jobs=n_jobs):
             super(Buffer, self).__init__()
@@ -307,6 +306,7 @@ def create_replay_buffer(n_jobs):
             self.buf_values = []
             self.buf_log_probs = []
             self.n_jobs = n_jobs
+            self.batch_size = batch_size
 
             edges = []
             for i in range(n_jobs + 1):
@@ -342,7 +342,7 @@ def create_replay_buffer(n_jobs):
 
             return target_vs, advs
 
-        def gen_datas(self, last_v=0, _lambda=1.0, batch_size=batch_size):
+        def gen_datas(self, last_v=0, _lambda=1.0):
             target_vs, advs = self.compute_values(last_v, _lambda)
             advs = (advs - advs.mean()) / advs.std()
             l, w = target_vs.shape
@@ -381,10 +381,8 @@ def create_replay_buffer(n_jobs):
     return Buffer()
 
 
-def roll_out(model, envs, states, n_jobs, n_steps=10, _lambda=0.213, batch_size=batch_size, n_remove=10, is_last=False,
-             greedy=False):
-    print("batch size, ", batch_size)
-    buffer = create_replay_buffer(n_jobs)
+def roll_out(model, envs, states, n_jobs, batch_size, n_steps=10, _lambda=0.99, n_remove=10, is_last=False, greedy=False):
+    buffer = create_replay_buffer(n_jobs, batch_size)
     with torch.no_grad():
         model.eval()
         nodes, edges = states
@@ -394,7 +392,7 @@ def roll_out(model, envs, states, n_jobs, n_steps=10, _lambda=0.213, batch_size=
         for i in range(n_steps):
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
-            actions, log_p, values, entropy = model(data, n_remove, greedy, 8)
+            actions, log_p, values, entropy = model(data, n_remove, greedy, batch_size)
             #             print (actions)
             new_nodes, new_edges, rewards = envs.step(actions.cpu().numpy())
             rewards = np.array(rewards)
@@ -406,9 +404,12 @@ def roll_out(model, envs, states, n_jobs, n_steps=10, _lambda=0.213, batch_size=
             nodes, edges = new_nodes, new_edges
 
         mean_value = _sum.mean()
-        #         print ("mean rewards:",mean_value)
-        #         print ("entropy:",np.mean(_entropy))
-        #         print ("mean cost:",np.mean([env.cost for env in envs.envs]))
+
+
+        # print("mean rewards:",mean_value)
+        # print("entropy:",np.mean(_entropy))
+        # print("mean cost:",np.mean([env.cost for env in envs.envs]))
+        # print('---')
 
         if not is_last:
             #             print ("not last")
@@ -419,7 +420,7 @@ def roll_out(model, envs, states, n_jobs, n_steps=10, _lambda=0.213, batch_size=
         else:
             values = 0
 
-        dl = buffer.gen_datas(values, _lambda=_lambda, batch_size=batch_size)
+        dl = buffer.gen_datas(values, _lambda=_lambda)
         return dl, (nodes, edges)
 
 
@@ -485,41 +486,49 @@ def random_init(envs, n_steps, n_instance, n_jobs):
     nodes, edges = envs.reset()
     for i in range(n_steps):
         actions = [random.sample(range(0, n_jobs), 10) for i in range(n_instance)]
-        print(actions)
+        #print(actions)
         actions = np.array(actions)
+        #print(actions)
         nodes, edges, rewards = envs.step(actions)
+        #print(rewards)
 
     return (nodes, edges), np.mean([env.cost for env in envs.envs])
 
 
 def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, n_instances, n_jobs):
     opt = torch.optim.Adam(model.parameters(), LR)
+    batch_size = n_instances
 
-    pre_steps = 1
+    pre_steps = 100
 
     for epoch in range(epochs):
-
         gc.collect()
-        states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
-        print()
-        # states = envs.reset()
+        # states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
+        states = envs.reset()
         print("=================>>>>>>>> before mean cost:", np.mean([env.cost for env in envs.envs]))
+        before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []
         for i in range(n_rollout):
             is_last = (i == n_rollout - 1)
-            datas, states = roll_out(model, envs, states, n_steps=rollout_steps, n_jobs=n_jobs, n_remove=n_remove, is_last=False)
+            datas, states = roll_out(model=model, envs=envs, states=states, n_steps=rollout_steps, n_jobs=n_jobs, batch_size=batch_size, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
 
         gc.collect()
 
-        dl = DataLoader(all_datas, batch_size=batch_size, shuffle=True)
+        dl = DataLoader(all_datas, batch_size, shuffle=True)
         for j in range(train_steps):
             gc.collect()
             train_once(model, opt, dl, epoch, 0)
 
         mean = np.mean([env.cost for env in envs.envs])
-        print("=================>>>>>>>> mean cost: {} - optimality gap: {}".format(mean, mean / 2958186))
+        print(envs.envs[0].vsp_jobs)
+        print("=================>>>>>>>> mean cost: {} - optimality gap: {}".format(mean, mean / 2_958_186))
+        cost = np.mean([env.cost for env in envs.envs])
+        gap =  mean / 2958186
+        with open(r'log.csv', 'a') as f:
+            writer = csv.writer(f)
+            writer.writerow([epoch,before_cost, cost, gap])
 
         if epoch % 10 == 0:
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, n_instances, n_jobs)
