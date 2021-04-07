@@ -22,7 +22,7 @@ if __name__ == "__main__":
     device = torch.device(args.device)
 
     n_instances = 1
-    n_jobs = 50
+    n_jobs = 10
 
     envs = create_batch_env(n_instances, n_jobs, test=True)
     # envs = create_batch_env(n_instances, n_jobs)
@@ -37,11 +37,11 @@ if __name__ == "__main__":
 
     train(model=model,
           envs=envs,
-          epochs= 400,
-          n_rollout=20,
-          rollout_steps=10,
-          train_steps=4,
-          n_remove=10,
+          epochs= 1,
+          n_rollout=2,
+          rollout_steps=2,
+          train_steps=2,
+          n_remove=5,
           n_instances=n_instances,
           n_jobs=n_jobs)
 

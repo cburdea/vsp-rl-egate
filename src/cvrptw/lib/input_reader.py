@@ -181,9 +181,9 @@ def get_dist_time(i_id, j_id, connections):
         try:
             dist = connection_comp.loc[:, 'Distance'].item()
             time = connection_comp.loc[:, 'RunTime'].item()
-            return dist, time
-           # print(time)
-           # print('---')
+            # print(i_id, j_id, dist, time, time / 60)
+            # print('---')
+            return dist, time/60
         except:
             #print(i_id)
             #print(j_id)
@@ -196,8 +196,9 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
 
     timetable = create_timetable_from_file(path)
 
+
     service_trips = convert_timetable_to_df(timetable)
-    service_trips = service_trips[:50]
+    service_trips = service_trips[:10]
     print(service_trips.head())
     connections = convert_connections_to_df(timetable)
     print(connections.head())
@@ -218,7 +219,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "weight": 0,
         "tw": {
             "start": row['DepTime'],
-            "end": row['ArrTime'],
+            "end": row['DepTime'],
         },
         "service_time": row['ArrTime'] - row['DepTime'],
         "job_type": "Pickup",
@@ -246,8 +247,8 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
             end = row_j['FromStopID']
             dist, time = get_dist_time(start, end, connections)
             service_i_dist_time.append({
-                'dist': float(dist),
-                'time': time/60
+                'dist': dist,
+                'time': time
             })
         dist_time.append(service_i_dist_time)
         print('> Initialized {}% of nodes'.format(int(round((len(dist_time)/amount_nodes)*100,0))))
@@ -271,7 +272,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
     alpha_T = (final_T / init_T) ** (1.0 / N_STEPS)
 
     v = {
-        "cap": 100,
+        "cap": 1,
         "tw": {
             "start": 0,
             "end": 1440,
@@ -286,22 +287,21 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "max_dist": 0,
     }
 
-    # print('alpha_t: ',alpha_T)
-
     input_data = {
         "vehicles": [v],
         "dist_time": dist_time,
-        "cost_per_absent": 1000,
+        "cost_per_absent": 99999999999999,
         "jobs": jobs,
         "depot": [0,0],
-        "l_max": 10,
-        "c1": 10,
+        "l_max": 100,
+        "c1": 100,
         "adjs": adjs,
         "temperature": 100,
         "c2": alpha_T,
-        "sa": True, #Simulated Annealing
+        "sa": False, #Simulated Annealing
     }
 
+    # print(input_data)
     return input_data, 0
 
 
@@ -349,13 +349,16 @@ def read_optimal_solution(path):
 
 def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_cost, km_cost):
 
-    vehicle_costs = len(blocks) * vehicle_cost
+    vehicle_costs = (len(blocks)-1) * vehicle_cost
     dist_costs = 0
+    time_costs = 0 #Implement if needed
 
     blockelements = np.asarray(blockelements)
     blockelements = np.transpose(blockelements)
 
+
     dataset = pd.DataFrame({'BlockID': blockelements[0][1:]})
+
 
     for i in range(1, len(blockelements)):
         dataset[blockelements[i][0]] = blockelements[i][1:]
@@ -365,22 +368,77 @@ def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_co
     dataset['ToStopID'] = dataset['ToStopID'].astype(int)
     dataset['ElementType'] = dataset['ElementType'].astype(int)
 
+    counter = 1
+
     for index, row in dataset.iterrows():
-        if row['ElementType'] != 1:
+        if row['ElementType'] != 1 and row['ElementType'] != 9:
+            counter +=1
             dep_id = row['FromStopID']
             arr_id = row['ToStopID']
             trip_dist, trip_time = get_dist_time(dep_id, arr_id, connections)
-            dist_costs += trip_dist * km_cost
+            dist_costs += (trip_dist * km_cost)
+
+    print('#######################################')
+    print('Optimal solution')
+    print('Total connections: ', counter)
+    print('Total blocks: ', (len(blocks)-1))
+    print('Total constraint violations: ', 0)
+    print('---------------------------------------')
+    print('Vehicle cost: ', vehicle_costs)
+    print('Kilometer cost: ', dist_costs * km_cost)
+    print('Total cost: ', vehicle_costs + dist_costs)
+    print('#######################################')
 
     return vehicle_costs + dist_costs
 
 
-def check_input_consistency(tour_loc, jobs, connections, vehicle_cost, km_cost):
+def get_loc_dict(jobs):
+    loc_dict = {}
+    for elem in jobs:
+        id = elem['id']
+        loc = elem['loc']
+        loc_dict[loc] = int(id)
+
+    return loc_dict
+
+
+def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id, vehicle_cost, km_cost):
+
+    loc_dict = get_loc_dict(jobs)
+    dist_cost = 0
+    constraint_violations = 0
+
+    timetable = convert_timetable_to_df(timetable)
+    for tour in tour_loc:
+        last_station = depot_id
+        for index, job in enumerate(tour):
+            trip_id = loc_dict[job+1]
+            service_start_id = timetable.loc[trip_id, 'FromStopID']
+            dist, travel_time = get_dist_time(last_station, service_start_id, connections)
+            dist_cost += dist
+            service_start_time = timetable.loc[trip_id, 'DepTime']
+            if last_station != depot_id:
+                last_arr_time = timetable.loc[loc_dict[tour[index-1]+1], 'ArrTime']
+                if last_arr_time + travel_time > service_start_time:
+                    constraint_violations += 1
+                    print('------------------------\npos:{}, trip_id: {}'.format(job, trip_id))
+                    print('Violation for service {} to {}'.format(last_station, service_start_id))
+                    print('last_arr_time: ', last_arr_time)
+                    print('travel_time: ', travel_time)
+                    print('arr_time: {} > departure_time: {}'.format((last_arr_time + travel_time), service_start_time))
+            last_station = timetable.loc[trip_id, 'ToStopID']
+        last_dist, last_time = get_dist_time(last_station, depot_id, connections)
+        dist_cost += last_dist
+
     print('#######################################')
     print('Consistency check:')
-    print('Total jobs: ', 0)
+    print('Total jobs: ', len([item for sublist in tour_loc for item in sublist]))
     print('Total blocks: ', len(tour_loc))
-    print('Total cost: ', 0)
+    print('Total constraint violations: ', constraint_violations)
+    print('---------------------------------------')
+    print('Vehicle cost: ', len(tour_loc) * vehicle_cost)
+    print('Kilometer cost: ', dist_cost * km_cost)
+    print('Total cost: ', (len(tour_loc) * vehicle_cost)+(dist_cost * km_cost))
     print('#######################################')
 
 
@@ -388,9 +446,11 @@ if __name__ == "__main__":
     blocks, blockelements = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
 
     timetable = create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
+    for elem in timetable:
+        print(tabulate(elem))
     connections = convert_connections_to_df(timetable)
 
-    print(tabulate(blocks))
-    print(tabulate(blockelements))
+    #print(tabulate(blocks))
+    #print(tabulate(blockelements))
 
     print(calculate_costs_from_solution(blocks, blockelements, connections, 200000, 1))

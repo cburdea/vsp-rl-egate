@@ -246,6 +246,7 @@ def create_env(n_jobs, _input=None, test=True):
             if self.best is None or self.cost < self.best:
                 self.best = self.cost
 
+
             return nodes, edges
 
         def sisr_step(self):
@@ -483,28 +484,106 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
 
 
 def random_init(envs, n_steps, n_instance, n_jobs):
+
+    n_remove_init = 10
+
     nodes, edges = envs.reset()
     for i in range(n_steps):
-        actions = [random.sample(range(0, n_jobs), 10) for i in range(n_instance)]
-        #print(actions)
+        actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(n_instance)]
+        print(actions)
         actions = np.array(actions)
-        #print(actions)
         nodes, edges, rewards = envs.step(actions)
-        #print(rewards)
 
     return (nodes, edges), np.mean([env.cost for env in envs.envs])
+
+
+def inspect_env(envs):
+
+    env = envs.envs[0]
+
+    action1 = [0]
+    action2 = [1, 0]
+    action3 = [2, 0]
+    action4 = [0, 2]
+    action5 = [4, 0]
+    action6 = [5, 0]
+    action7 = [6, 0]
+    action8 = [7, 0]
+    action9 = [8, 0]
+    action10 = [9, 0]
+    action11 = [2, 5]
+    action12 = [2]
+
+    actions = [action1,
+               action2,
+               action3,
+               action4,
+               action5,
+               action6,
+               action7,
+               action8,
+               action9,
+               action10,
+               action11,
+               action12]
+
+    for elem in actions:
+        env.reset()
+        action = np.array(elem)
+        print(env.env.tours(), env.env.cost())
+        print(action)
+        env.step(action)
+        print(env.env.tours(), env.env.cost())
+        print('')
+
+
+    '''
+    env.reset()
+    print('Reset')
+    print(env.env.tours())
+    actions = [random.sample(range(0, 9), 9)]
+    actions = np.array(actions)
+    envs.step(actions)
+    print('Actions:')
+    print(actions)
+    print(env.env.tours())
+    print('')
+    print('Reset')
+    env.reset()
+    print(env.env.tours())
+    print('Actions:')
+    actions = [[1,0]]
+    actions = np.array(actions)
+    envs.step(actions)
+    print(actions)
+    print(env.env.tours())
+    '''
+    '''
+
+    for i in range(0,30):
+        print('--')
+        env.reset()
+        print(env.env.tours())
+        actions = [random.sample(range(0, 9), 1)]
+        print(actions)
+        actions = np.array(actions)
+        envs.step(actions)
+        print(env.env.tours())
+    '''
 
 
 def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, n_instances, n_jobs):
     opt = torch.optim.Adam(model.parameters(), LR)
     batch_size = n_instances
 
-    pre_steps = 100
+    # inspect_env(envs)
+
+    pre_steps = 1
 
     for epoch in range(epochs):
         gc.collect()
-        # states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
-        states = envs.reset()
+        states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
+        # states = envs.reset()
         print("=================>>>>>>>> before mean cost:", np.mean([env.cost for env in envs.envs]))
         before_cost = np.mean([env.cost for env in envs.envs])
 
@@ -514,6 +593,8 @@ def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, 
             datas, states = roll_out(model=model, envs=envs, states=states, n_steps=rollout_steps, n_jobs=n_jobs, batch_size=batch_size, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
 
+        # print(datas)
+
         gc.collect()
 
         dl = DataLoader(all_datas, batch_size, shuffle=True)
@@ -522,10 +603,16 @@ def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, 
             train_once(model, opt, dl, epoch, 0)
 
         mean = np.mean([env.cost for env in envs.envs])
-        print(envs.envs[0].vsp_jobs)
-        print("=================>>>>>>>> mean cost: {} - optimality gap: {}".format(mean, mean / 2_958_186))
+        jobs = envs.envs[0].vsp_jobs
+        tour = envs.envs[0].vsp_tours
+        timetable = vsp_env.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
+        connections = vsp_env.convert_connections_to_df(timetable)
+        vsp_env.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
+
+        gap = mean / 2758186
+        print("=================>>>>>>>> mean cost: {} - optimality gap: {}".format(mean, gap))
         cost = np.mean([env.cost for env in envs.envs])
-        gap =  mean / 2958186
+
         with open(r'log.csv', 'a') as f:
             writer = csv.writer(f)
             writer.writerow([epoch,before_cost, cost, gap])
