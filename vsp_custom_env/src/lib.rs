@@ -97,7 +97,7 @@ impl Tour {
 
     #[inline(always)]
     fn calc_delta(&self,delta_d: f32,delta_t: f32,delta_w: f32) -> f32 {
-        let mut delta = delta_d * self.vehicle.fee_per_dist + delta_w * self.vehicle.handling_cost_per_weight;
+        let mut delta = delta_d * self.vehicle.fee_per_dist + delta_w * self.vehicle.handling_cost_per_weight + delta_t * self.vehicle.fee_per_time;
         // self.vehicle.fee_per_time * delta_t
         if self.tour.len() == 0 {
             delta += self.vehicle.fixed_cost;
@@ -366,6 +366,10 @@ impl Recreate {
             let dt2 = &self.dist_time[job.loc][w[1].loc];
             let dt3 = &self.dist_time[w[0].loc][w[1].loc];
 
+            println!("dt1 {:?}", dt1);
+            println!("dt1 {:?}", dt1);
+            println!("dt1 {:?}", dt1);
+
             //check max_dist
             let delta_d =  dt1.dist + dt2.dist - dt3.dist;
             if v.max_dist > 0f32 && delta_d + last_state.dist > v.max_dist {
@@ -374,7 +378,7 @@ impl Recreate {
                 continue;
             }
 
-            
+            println!("delta_d: {:?}", delta_d);
 
             let mut t = w[0].time;
             t += dt1.time + w[0].service_time;
@@ -393,26 +397,36 @@ impl Recreate {
             debug!("===========>job:{:?},t:{:?},w[1]:{:?}",job,t,w[1]);
 
             //check time slack --------------------------------------------------------------------------------------------------------------------------
-            // let delta_t = t - w[1].arrive_time;// to be fixed
             let mut original_time = 0f32;
+            let mut time_to_job = 0f32;
+            let mut time_from_job = 0f32;
+
+
             if j == 0 {
                 original_time = w[1].time - w[0].time_slack;
+                time_to_job = dt1.time;
+                time_from_job = w[1].time - (job.tw.start + job.service_time);
             } else if j == tour.tour.len(){
                 original_time = w[1].time - w[1].time_slack;
+                time_to_job = job.tw.start - (w[0].time + w[0].service_time); 
+                time_from_job = w[1].time - (job.tw.start + job.service_time);
             } else {
                 original_time = w[1].time - (w[0].time + w[0].service_time);
+                time_to_job = job.tw.start - (w[0].time + w[0].service_time); 
+                time_from_job = dt2.time;
             }
 
-            
+            let delta_t = time_to_job + time_from_job - original_time;
+            println!("delta_t: {:?}", delta_t);
 
-            let delta_t = 0f32;
             // ------------------------------------------------------------------------------------------------------------------------------------------
-        
-            if t - w[1].time> w[1].time_slack { // t zu diesem Zeitpunkt die frühste Ankunft bei w[1] 
+            
+            if t - w[1].time> w[1].time_slack { 
                 debug!("===========>check failed");
                 println!("time slack check failed");
                 continue;
             }
+
             // -------------------------------------------------------------------------------------------------------------------------------------------
             
             let delta_cost = tour.calc_delta(delta_d,delta_t,job.weight);
