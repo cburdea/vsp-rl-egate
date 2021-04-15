@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from torch_geometric.data import Data,DataLoader
 from lib.utils_train import create_batch_env, train
 from lib.egate_model import Model
-from arguments_org import args
+from arguments import args
 import argparse
 
 if __name__ == "__main__":
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     device = torch.device(args.device)
 
     n_instances = 1
-    n_jobs = 10
+    n_jobs = 213
 
     envs = create_batch_env(n_instances, n_jobs, test=True)
     # envs = create_batch_env(n_instances, n_jobs)
@@ -38,10 +38,10 @@ if __name__ == "__main__":
     train(model=model,
           envs=envs,
           epochs= 1,
-          n_rollout=2,
+          n_rollout=1,
           rollout_steps=2,
-          train_steps=2,
-          n_remove=5,
+          train_steps=1,
+          n_remove=2,
           n_instances=n_instances,
           n_jobs=n_jobs)
 

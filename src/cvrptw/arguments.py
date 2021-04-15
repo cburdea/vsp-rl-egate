@@ -16,5 +16,5 @@ def args():
     parser.add_argument('--N_STEPS', default=200)
     parser.add_argument('--init_T', default=100.0)
     parser.add_argument('--final_T', default=1.0)
-    parser.add_argument('--device', default="cuda:0")
+    parser.add_argument('--device', default="cpu")
     return parser.parse_args()

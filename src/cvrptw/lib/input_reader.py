@@ -63,8 +63,8 @@ def create_timetable_from_file(path):
         for j in range (0, len(content_seperated[i])):
             content_seperated[i][j] = content_seperated[i][j].split(';')
 
-    #for elem in content_seperated:
-    #    print(tabulate(elem))
+    # for elem in content_seperated:
+    #     print(tabulate(elem))
 
     return content_seperated
 
@@ -181,7 +181,7 @@ def get_dist_time(i_id, j_id, connections):
         try:
             dist = connection_comp.loc[:, 'Distance'].item()
             time = connection_comp.loc[:, 'RunTime'].item()
-            # print(i_id, j_id, dist, time, time / 60)
+            #print(i_id, j_id, dist, time / 60)
             # print('---')
             return dist, time/60
         except:
@@ -198,8 +198,8 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
 
 
     service_trips = convert_timetable_to_df(timetable)
-    service_trips = service_trips[:10]
-    print(service_trips.head())
+    #service_trips = service_trips[:10]
+    print(service_trips)
     connections = convert_connections_to_df(timetable)
     print(connections.head())
     service_trips['service_id'] = service_trips.index.values
@@ -279,9 +279,9 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         },
         "start_loc": 0,
         "end_loc": 0,
-        "fee_per_dist": 1.0,
-        "fee_per_time": 0,
-        "fixed_cost": 200000,
+        "fee_per_dist": 0,
+        "fee_per_time": 1,
+        "fixed_cost": 0,
         "handling_cost_per_weight": 0.0,
         "max_stops": 0,
         "max_dist": 0,
@@ -298,7 +298,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "adjs": adjs,
         "temperature": 100,
         "c2": alpha_T,
-        "sa": False, #Simulated Annealing
+        "sa": True, #Simulated Annealing
     }
 
     # print(input_data)

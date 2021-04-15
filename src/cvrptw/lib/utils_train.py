@@ -2,7 +2,8 @@ import numpy as np
 import json
 import random
 import math
-import vrp_env
+# import vrp_env
+import vsp_custom_env as vrp_env
 import gc
 import torch
 from tabulate import tabulate
@@ -172,7 +173,7 @@ def create_instance(n_nodes=100, n_clusters=None):
         "sa": True,
     }
 
-    return input_data, 0# raw
+    return input_data,0# raw
 
 
 def create_env(n_jobs, _input=None, test=True):
@@ -210,7 +211,6 @@ def create_env(n_jobs, _input=None, test=True):
             jobs = self.input['jobs']
             self.vsp_jobs = self.input['jobs']
             depot = self.input['depot']
-
 
             nodes = np.zeros((self.n_jobs + 1, 8))
             edges = np.zeros((self.n_jobs + 1, self.n_jobs + 1, 1))
@@ -261,6 +261,7 @@ def create_env(n_jobs, _input=None, test=True):
             self.env.step(to_remove)
             nodes, edges = self.get_states()
             reward = prev_cost - self.cost
+            print(self.vsp_tours)
             return nodes, edges, reward
 
     env = Env(n_jobs, _input)
@@ -473,6 +474,7 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
         nodes, edges = envs.reset()
         _sum = np.zeros(n_instances)
         for i in range(n_steps):
+            print("Achtung: Eval_Random Funktion noch anpassen")
             actions = [random.sample(range(0, n_jobs), 10) for i in range(n_instances)]
             actions = np.array(actions)
             new_nodes, new_edges, rewards = envs.step(actions)
@@ -582,8 +584,8 @@ def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, 
 
     for epoch in range(epochs):
         gc.collect()
-        states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
-        # states = envs.reset()
+        # states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
+        states = envs.reset()
         print("=================>>>>>>>> before mean cost:", np.mean([env.cost for env in envs.envs]))
         before_cost = np.mean([env.cost for env in envs.envs])
 
@@ -605,6 +607,7 @@ def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, 
         mean = np.mean([env.cost for env in envs.envs])
         jobs = envs.envs[0].vsp_jobs
         tour = envs.envs[0].vsp_tours
+        print(tour)
         timetable = vsp_env.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
         connections = vsp_env.convert_connections_to_df(timetable)
         vsp_env.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
@@ -617,8 +620,8 @@ def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, 
             writer = csv.writer(f)
             writer.writerow([epoch,before_cost, cost, gap])
 
-        if epoch % 10 == 0:
-            eval_random(3, envs, n_rollout * rollout_steps + pre_steps, n_instances, n_jobs)
+        #if epoch % 10 == 0:
+        #    eval_random(3, envs, n_rollout * rollout_steps + pre_steps, n_instances, n_jobs)
 
-        if epoch % 100 == 0:
-            torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-%s.model" % epoch)
+        #if epoch % 100 == 0:
+        #    torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-%s.model" % epoch)
