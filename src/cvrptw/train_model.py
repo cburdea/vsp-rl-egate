@@ -8,6 +8,7 @@ import math
 import vrp_env
 import torch
 import gc
+import lib.input_reader as reader
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data,DataLoader
@@ -21,11 +22,8 @@ if __name__ == "__main__":
 
     device = torch.device(args.device)
 
-    n_instances = 1
-    n_jobs = 213
+    #reader.save_plans_as_pickle()
 
-    envs = create_batch_env(n_instances, n_jobs, test=True)
-    # envs = create_batch_env(n_instances, n_jobs)
     stop = timeit.default_timer()
     print('Data loaded: ', stop - start)
 
@@ -36,14 +34,12 @@ if __name__ == "__main__":
 
 
     train(model=model,
-          envs=envs,
-          epochs= 1,
+          epochs= 2,
           n_rollout=1,
           rollout_steps=2,
           train_steps=1,
           n_remove=2,
-          n_instances=n_instances,
-          n_jobs=n_jobs)
+          )
 
 
     # train(model, envs, 1000, 20, 10, 4, n_remove=10)

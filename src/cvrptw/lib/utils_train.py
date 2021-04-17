@@ -11,180 +11,41 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data, DataLoader
 from lib.rms import RunningMeanStd
-from arguments_org import args
-import lib.input_reader as vsp_env
+from arguments import args
+import lib.input_reader as reader
 import csv
 import argparse
 
 args = args()
 
 device = torch.device(args.device)
-# N_JOBS = int(args.N_JOBS)
-CAP = int(args.CAP)
-#batch_size = int(args.BATCH)
-#batch_size = 1
-MAX_COORD = int(args.MAX_COORD)
-MAX_DIST = float(args.MAX_DIST)
+N_JOBS = int(args.N_JOBS)
+BATCH_SIZE = int(args.BATCH)
 LR = float(args.LR)
-DEPOT_END = int(args.DEPOT_END)
-SERVICE_TIME = int(args.SERVICE_TIME)
-TW_WIDTH = int(args.TW_WIDTH)
-
 N_STEPS = int(args.N_STEPS)
-
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 
+test_size_jobs = 2
+
 reward_norm = RunningMeanStd()
 
+vsp_envs = None
 
-def create_instance(n_nodes=100, n_clusters=None):
-    def random_tw(dist_to_depot, service_time=SERVICE_TIME, depot_end=DEPOT_END, tw_width=TW_WIDTH):
-        start = random.randint(math.ceil(dist_to_depot), 200)
-        end = start + tw_width
-        #         print (start,end)
-        if end < dist_to_depot or end + service_time + dist_to_depot > depot_end:
-            start = 0
-            end = depot_end
-
-        return start, end
-
-    def random_cvrp(n_nodes, n_clusters=None, demand_lowerBnd=1, demand_upperBnd=9):
-        data = []
-        # 如果 node 数量小于1000，那么边长为100
-        side_limit = MAX_COORD
-
-        if n_clusters is not None:
-            assert n_clusters < n_nodes
-            while len(data) < n_clusters:
-                coord = [np.random.randint(0, side_limit), np.random.randint(0, side_limit)]
-                flag = False
-                for d in data:
-                    if coord[0] == d[0] and coord[1] == d[1]:
-                        flag = True
-                        break
-                if flag: continue
-                data.append([coord[0], coord[1],
-                             np.random.randint(demand_lowerBnd, demand_upperBnd + 1), ])
-
-            while len(data) < n_nodes:
-                rnd = np.array([np.random.randint(-3, 4), np.random.randint(-3, 4)])
-                coord = data[np.random.randint(len(data))][:2] + rnd
-                if coord[0] < 0 or coord[1] < 0 or coord[0] >= side_limit or coord[1] >= side_limit: continue
-                flag = False
-                for d in data:
-                    if coord[0] == d[0] and coord[1] == d[1]:
-                        flag = True
-                        break
-                if flag: continue
-                data.append([coord[0], coord[1],
-                             np.random.randint(demand_lowerBnd, demand_upperBnd + 1), ])
-        else:
-            while len(data) < n_nodes:
-                coord = [np.random.randint(0, side_limit), np.random.randint(0, side_limit)]
-                flag = False
-                for d in data:
-                    if coord[0] == d[0] and coord[1] == d[1]:
-                        flag = True
-                        break
-                if flag: continue
-                data.append([coord[0], coord[1],
-                             np.random.randint(demand_lowerBnd, demand_upperBnd + 1), ])
-        data = np.array(data)
-        return data
-
-    coords = random_cvrp(n_nodes, n_clusters=n_clusters)
-    raw = coords
-    coords = coords.tolist()
-    # print(coords)
-    # print(len(coords))
-
-    #     print ("coords len:",len(coords))
-
-    def calc_dist(l, r):
-        return ((l[0] - r[0]) ** 2 + (l[1] - r[1]) ** 2) ** 0.5
-
-    jobs = []
-    for i, (x, y, demand) in enumerate(coords[1:]):
-        dist_to_depot = calc_dist((x, y), coords[0])
-        start, end = random_tw(dist_to_depot, 10)
-        jobs.append({
-            "id": i,
-            "loc": i + 1,
-            "name": str(i),
-            "x": x,
-            "y": y,
-            "weight": demand,
-            "tw": {
-                "start": start,
-                "end": end,
-            },
-            "service_time": SERVICE_TIME,
-            "job_type": "Pickup",
-        })
-
-    dist_time = []
-
-    for i, (x1, y1, _) in enumerate(coords):
-        row = []
-        for j, (x2, y2, _) in enumerate(coords):
-            d = calc_dist((x1, y1), (x2, y2))
-            row.append(({"dist": d, "time": d}))
-        dist_time.append(row)
-
-    # for elem in jobs:
-    #    print(elem)
-
-    adjs = []
-
-    for i, job in enumerate(jobs):
-        l = [(j, dist_time[job['loc']][_job['loc']]['dist']) for j, _job in enumerate(jobs)]
-        l = sorted(l, key=lambda x: x[1])
-        l = [x[0] for x in l]
-        adjs.append(l)
-
-    v = {
-        "cap": CAP,
-        "tw": {
-            "start": 0,
-            "end": 300,
-        },
-        "start_loc": 0,
-        "end_loc": 0,
-        "fee_per_dist": 1.0,
-        "fee_per_time": 0,
-        "fixed_cost": 0,
-        "handling_cost_per_weight": 0.0,
-        "max_stops": 0,
-        "max_dist": 0,
-    }
-    alpha_T = (final_T / init_T) ** (1.0 / N_STEPS)
-    input_data = {
-        "vehicles": [v],
-        "dist_time": dist_time,
-        "cost_per_absent": 1000,
-        "jobs": jobs,
-        "depot": coords[0][:2],
-        "l_max": 10,
-        "c1": 10,
-        "adjs": adjs,
-        "temperature": 100,
-        "c2": alpha_T,
-        "sa": True,
-    }
-
-    return input_data,0# raw
+def initialize_vsp_envs(path):
+    global vsp_envs
+    vsp_envs= reader.load_vsp_envs_from_pickle(path)
 
 
-def create_env(n_jobs, _input=None, test=True):
+def create_env(n_jobs, _input=None, epoch = 0):
     class Env(object):
-        def __init__(self, n_jobs, _input=None, raw=None):
+        def __init__(self, n_jobs, _input=None, raw=None, epoch = 0):
             self.n_jobs = n_jobs
             if _input == None:
-                if test:
-                    _input, raw = vsp_env.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
-                else:
-                    _input, raw = create_instance(n_jobs + 1)
+                env_instance = epoch % test_size_jobs
+                raw = 0
+                _input =  vsp_envs[env_instance]
+                #_input, raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
 
             self.input = _input
             self.raw = raw
@@ -221,7 +82,7 @@ def create_env(n_jobs, _input=None, test=True):
                 for j, (index, s) in enumerate(zip(tour, tour_state[1:])):
                     job = jobs[index]
                     loc = job['loc']
-                    nodes[loc, :] = [job['weight'] / CAP, s['weight'] / CAP, s['dist'] / self.max_dist_custom,
+                    nodes[loc, :] = [job['weight'] / 1, s['weight'] / 1, s['dist'] / self.max_dist_custom,
                                      s['time'] / self.max_dist_custom, job['tw']['start'] / self.max_dist_custom,
                                      job['tw']['end'] / self.max_dist_custom, s['time'] / self.max_dist_custom,
                                      s['time_slack'] / self.max_dist_custom]
@@ -261,19 +122,19 @@ def create_env(n_jobs, _input=None, test=True):
             self.env.step(to_remove)
             nodes, edges = self.get_states()
             reward = prev_cost - self.cost
-            print(self.vsp_tours)
+            # print(self.vsp_tours)
             return nodes, edges, reward
 
-    env = Env(n_jobs, _input)
+    env = Env(n_jobs, _input, epoch = epoch)
     return env
 
 
-def create_batch_env(batch_size, n_jobs, test=True):
+def create_batch_env(batch_size, n_jobs, epoch = 0):
     class BatchEnv(object):
         def __init__(self, batch_size):
             # _input = create_instance(n_jobs+1)
             # self.envs = [create_env(n_jobs, None, test) for i in range(batch_size)]
-            e = create_env(n_jobs, None, test)
+            e = create_env(n_jobs, None, epoch = epoch)
             envs = []
             for i in range(0, batch_size):
                 envs.append(e)
@@ -492,7 +353,6 @@ def random_init(envs, n_steps, n_instance, n_jobs):
     nodes, edges = envs.reset()
     for i in range(n_steps):
         actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(n_instance)]
-        print(actions)
         actions = np.array(actions)
         nodes, edges, rewards = envs.step(actions)
 
@@ -532,11 +392,8 @@ def inspect_env(envs):
     for elem in actions:
         env.reset()
         action = np.array(elem)
-        print(env.env.tours(), env.env.cost())
-        print(action)
         env.step(action)
-        print(env.env.tours(), env.env.cost())
-        print('')
+
 
 
     '''
@@ -574,32 +431,33 @@ def inspect_env(envs):
     '''
 
 
-def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, n_instances, n_jobs):
+def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
-    batch_size = n_instances
 
-    # inspect_env(envs)
+    initialize_vsp_envs('vsp_data/pickle_data')
 
-    pre_steps = 1
+    pre_steps = 100
+    log = []
 
     for epoch in range(epochs):
         gc.collect()
-        # states, mean_cost = random_init(envs, pre_steps, n_instances, n_jobs)
-        states = envs.reset()
+        envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
+        states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
+        #states = envs.reset()
         print("=================>>>>>>>> before mean cost:", np.mean([env.cost for env in envs.envs]))
         before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []
         for i in range(n_rollout):
             is_last = (i == n_rollout - 1)
-            datas, states = roll_out(model=model, envs=envs, states=states, n_steps=rollout_steps, n_jobs=n_jobs, batch_size=batch_size, n_remove=n_remove, is_last=False)
+            datas, states = roll_out(model=model, envs=envs, states=states, n_steps=rollout_steps, n_jobs=N_JOBS, batch_size=BATCH_SIZE, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
 
         # print(datas)
 
         gc.collect()
 
-        dl = DataLoader(all_datas, batch_size, shuffle=True)
+        dl = DataLoader(all_datas, BATCH_SIZE, shuffle=True)
         for j in range(train_steps):
             gc.collect()
             train_once(model, opt, dl, epoch, 0)
@@ -607,21 +465,27 @@ def train(model, envs, epochs, n_rollout, rollout_steps, train_steps, n_remove, 
         mean = np.mean([env.cost for env in envs.envs])
         jobs = envs.envs[0].vsp_jobs
         tour = envs.envs[0].vsp_tours
-        print(tour)
-        timetable = vsp_env.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
-        connections = vsp_env.convert_connections_to_df(timetable)
-        vsp_env.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
+        #print(tour)
+        timetable = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
+        connections = reader.convert_connections_to_df(timetable)
+        reader.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
 
-        gap = mean / 2758186
-        print("=================>>>>>>>> mean cost: {} - optimality gap: {}".format(mean, gap))
+
+        print("=================>>>>>>>> mean cost: {}".format(mean))
         cost = np.mean([env.cost for env in envs.envs])
 
+        log.append([[epoch,before_cost, cost]])
+
+
+
+        if epoch % 10 == 0:
+            eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
+
+        if epoch % 100 == 0:
+            torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-%s.model" % epoch)
+
+
+    for l in log:
         with open(r'log.csv', 'a') as f:
             writer = csv.writer(f)
-            writer.writerow([epoch,before_cost, cost, gap])
-
-        #if epoch % 10 == 0:
-        #    eval_random(3, envs, n_rollout * rollout_steps + pre_steps, n_instances, n_jobs)
-
-        #if epoch % 100 == 0:
-        #    torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-%s.model" % epoch)
+            writer.writerow(l)

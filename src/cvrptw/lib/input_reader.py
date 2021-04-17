@@ -3,28 +3,13 @@ import numpy as np
 import random
 from tabulate import tabulate
 from datetime import datetime
+import pickle
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
 
 from arguments import args
 args = args()
-
-
-class Timetable:
-
-    stpopoints = None
-    lines = None
-    vehicle_type = None
-    vehicletype_group = None
-    vehtype_2_vehtype_group = None
-    vehicle_captype_to_stoppoint = None
-    service_journey = None
-    deadrun_type = None
-    reliefpoint = None
-
-    def __init__(self):
-        print('tbd')
-
+import os
 
 def create_timetable_from_file(path):
     print('Reading timetable...')
@@ -63,7 +48,7 @@ def create_timetable_from_file(path):
         for j in range (0, len(content_seperated[i])):
             content_seperated[i][j] = content_seperated[i][j].split(';')
 
-    # for elem in content_seperated:
+    #for elem in content_seperated:
     #     print(tabulate(elem))
 
     return content_seperated
@@ -105,8 +90,8 @@ def read_vehicle_scheduling_from_file(path):
         for j in range (0, len(content_seperated[i])):
             content_seperated[i][j] = content_seperated[i][j].split(';')
 
-    #for elem in range(0,len(content_seperated)):
-    #    print(tabulate(content_seperated[elem]))
+    for elem in range(0,len(content_seperated)):
+        print(tabulate(content_seperated[elem]))
 
     return content
 
@@ -192,13 +177,13 @@ def get_dist_time(i_id, j_id, connections):
             return False, False
 
 
-def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
+def create_vsp_env_from_file(path):
 
     timetable = create_timetable_from_file(path)
 
-
+    depot_id = int(timetable[5][1][1])
     service_trips = convert_timetable_to_df(timetable)
-    #service_trips = service_trips[:10]
+    # service_trips = service_trips[:10]
     print(service_trips)
     connections = convert_connections_to_df(timetable)
     print(connections.head())
@@ -301,7 +286,7 @@ def create_vsp_env_from_file(path, vehicle_cap=1, depot_id = 168):
         "sa": True, #Simulated Annealing
     }
 
-    # print(input_data)
+    print(input_data)
     return input_data, 0
 
 
@@ -440,6 +425,25 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
     print('Kilometer cost: ', dist_cost * km_cost)
     print('Total cost: ', (len(tour_loc) * vehicle_cost)+(dist_cost * km_cost))
     print('#######################################')
+
+
+def save_plans_as_pickle():
+
+    all_paths = [x for x in os.listdir("vsp_data") if x[:8] == "Fahrplan"and x[-4:] == ".txt"]
+
+    for i, path in enumerate(all_paths):
+        plan = create_vsp_env_from_file('vsp_data/' + path)
+        with open("vsp_data/pickle_data/vsp_plan_nr" + str(i) + '.pkl', 'wb') as output:
+            pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
+
+def load_vsp_envs_from_pickle(path):
+    envs = []
+    all_paths = [x for x in os.listdir(path) if x[-4:] == ".pkl"]
+
+    for object_path in all_paths:
+        with open(path + "/" +object_path, 'rb') as handle:
+            envs.append(pickle.load(handle)[0])
+    return envs
 
 
 if __name__ == "__main__":
