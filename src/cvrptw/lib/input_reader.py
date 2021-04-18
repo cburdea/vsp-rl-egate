@@ -11,6 +11,8 @@ from arguments import args
 args = args()
 import os
 
+N_STEPS = int(args.N_STEPS)
+
 def create_timetable_from_file(path):
     print('Reading timetable...')
     with open(path) as f:
@@ -48,8 +50,8 @@ def create_timetable_from_file(path):
         for j in range (0, len(content_seperated[i])):
             content_seperated[i][j] = content_seperated[i][j].split(';')
 
-    #for elem in content_seperated:
-    #     print(tabulate(elem))
+    for elem in content_seperated:
+         print(tabulate(elem))
 
     return content_seperated
 
@@ -181,6 +183,7 @@ def create_vsp_env_from_file(path):
 
     timetable = create_timetable_from_file(path)
 
+
     depot_id = int(timetable[5][1][1])
     service_trips = convert_timetable_to_df(timetable)
     # service_trips = service_trips[:10]
@@ -251,7 +254,7 @@ def create_vsp_env_from_file(path):
         l = [x[0] for x in l]
         adjs.append(l)
 
-    N_STEPS = int(args.N_STEPS)
+
     init_T = float(args.init_T)
     final_T = float(args.final_T)
     alpha_T = (final_T / init_T) ** (1.0 / N_STEPS)
@@ -264,8 +267,8 @@ def create_vsp_env_from_file(path):
         },
         "start_loc": 0,
         "end_loc": 0,
-        "fee_per_dist": 0,
-        "fee_per_time": 1,
+        "fee_per_dist": 120,
+        "fee_per_time": 30,
         "fixed_cost": 0,
         "handling_cost_per_weight": 0.0,
         "max_stops": 0,
@@ -278,10 +281,10 @@ def create_vsp_env_from_file(path):
         "cost_per_absent": 99999999999999,
         "jobs": jobs,
         "depot": [0,0],
-        "l_max": 100,
-        "c1": 100,
+        #"l_max": 100,
+        #"c1": 100,
         "adjs": adjs,
-        "temperature": 100,
+        "temperature": 50,
         "c2": alpha_T,
         "sa": True, #Simulated Annealing
     }
@@ -435,6 +438,7 @@ def save_plans_as_pickle():
         plan = create_vsp_env_from_file('vsp_data/' + path)
         with open("vsp_data/pickle_data/vsp_plan_nr" + str(i) + '.pkl', 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
+
 
 def load_vsp_envs_from_pickle(path):
     envs = []

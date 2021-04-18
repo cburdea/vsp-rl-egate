@@ -18,6 +18,11 @@ from arguments import args
 import argparse
 
 if __name__ == "__main__":
+    print('l_max anfragen')
+    print('c1 anfragen')
+    print('c2 anfragen')
+    print('unterschied N-Steps und Rollout Steps nachfragen: Warum nicht gleich?')
+
     args = args()
 
     device = torch.device(args.device)
@@ -30,15 +35,15 @@ if __name__ == "__main__":
     model = Model(input_node_dim=8, hidden_node_dim=16, input_edge_dim=2, hidden_edge_dim=4)
     model = model.to(device)
 
-    # model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest_custom.model"))
+    #model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest_custom.model"))
 
 
     train(model=model,
-          epochs= 2,
-          n_rollout=1,
-          rollout_steps=2,
+          epochs=20,
+          n_rollout=5,
+          rollout_steps=20,
           train_steps=1,
-          n_remove=2,
+          n_remove=20,
           )
 
 

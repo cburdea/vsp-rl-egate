@@ -22,7 +22,7 @@ device = torch.device(args.device)
 N_JOBS = int(args.N_JOBS)
 BATCH_SIZE = int(args.BATCH)
 LR = float(args.LR)
-N_STEPS = int(args.N_STEPS)
+# = int(args.N_STEPS)
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 
@@ -42,7 +42,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
         def __init__(self, n_jobs, _input=None, raw=None, epoch = 0):
             self.n_jobs = n_jobs
             if _input == None:
-                env_instance = epoch % test_size_jobs
+                env_instance = epoch % len(vsp_envs)
                 raw = 0
                 _input =  vsp_envs[env_instance]
                 #_input, raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
@@ -335,7 +335,7 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
         nodes, edges = envs.reset()
         _sum = np.zeros(n_instances)
         for i in range(n_steps):
-            print("Achtung: Eval_Random Funktion noch anpassen")
+            #print("Achtung: Eval_Random Funktion noch anpassen")
             actions = [random.sample(range(0, n_jobs), 10) for i in range(n_instances)]
             actions = np.array(actions)
             new_nodes, new_edges, rewards = envs.step(actions)
@@ -440,11 +440,13 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     log = []
 
     for epoch in range(epochs):
+        print()
         gc.collect()
         envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
         states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
         #states = envs.reset()
-        print("=================>>>>>>>> before mean cost:", np.mean([env.cost for env in envs.envs]))
+        before_mean_cost = np.mean([env.cost for env in envs.envs])
+        print("=================>>>>>>>> before mean cost:", before_mean_cost)
         before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []
@@ -466,12 +468,12 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         jobs = envs.envs[0].vsp_jobs
         tour = envs.envs[0].vsp_tours
         #print(tour)
-        timetable = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
-        connections = reader.convert_connections_to_df(timetable)
-        reader.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
+        #timetable = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
+        #connections = reader.convert_connections_to_df(timetable)
+        #reader.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
 
 
-        print("=================>>>>>>>> mean cost: {}".format(mean))
+        print("=================>>>>>>>> improvement: {}% mean cost: {}".format(round((1-(mean/before_mean_cost))*100,2),mean))
         cost = np.mean([env.cost for env in envs.envs])
 
         log.append([[epoch,before_cost, cost]])
