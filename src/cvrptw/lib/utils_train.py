@@ -22,7 +22,6 @@ device = torch.device(args.device)
 N_JOBS = int(args.N_JOBS)
 BATCH_SIZE = int(args.BATCH)
 LR = float(args.LR)
-# = int(args.N_STEPS)
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 
@@ -34,7 +33,8 @@ vsp_envs = None
 
 def initialize_vsp_envs(path):
     global vsp_envs
-    vsp_envs= reader.load_vsp_envs_from_pickle(path)
+    vsp_envs = reader.load_vsp_envs_from_pickle(path)
+    vsp_envs = [instance[0] for instance in vsp_envs]
 
 
 def create_env(n_jobs, _input=None, epoch = 0):
@@ -434,7 +434,7 @@ def inspect_env(envs):
 def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
 
-    initialize_vsp_envs('vsp_data/pickle_data')
+    initialize_vsp_envs('vsp_data/pickle_train_data')
 
     pre_steps = 100
     log = []
@@ -478,7 +478,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         log.append([[epoch,before_cost, cost]])
 
-
+        torch.save(model.state_dict(), "model/cpu_model-%s.model" % epoch)
 
         if epoch % 10 == 0:
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)

@@ -22,6 +22,10 @@ if __name__ == "__main__":
     print('c1 anfragen')
     print('c2 anfragen')
     print('unterschied N-Steps und Rollout Steps nachfragen: Warum nicht gleich?')
+    print('Terminologie hin zu VSP')
+    print('Forken zu VSP')
+    print('Schauen, welche Layer und Nodeanzahl die Autoren verwendet haben')
+    print('Warum wird im Training eine Batchzahl größer 1 benötigt?')
 
     args = args()
 

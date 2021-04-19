@@ -14,14 +14,14 @@ args = args()
 
 device = torch.device(args.device)
 N_JOBS = int(args.N_JOBS)
-CAP = int(args.CAP)
+CAP = 10000# int(args.CAP)
 batch_size = int(args.BATCH)
-MAX_COORD = int(args.MAX_COORD)
-MAX_DIST = float(args.MAX_DIST)
+MAX_COORD = 1# int(args.MAX_COORD)
+MAX_DIST = 1000#float(args.MAX_DIST)
 LR = float(args.LR)
-DEPOT_END = int(args.DEPOT_END)
-SERVICE_TIME = int(args.SERVICE_TIME)
-TW_WIDTH = int(args.TW_WIDTH)
+DEPOT_END = 10000000#int(args.DEPOT_END)
+SERVICE_TIME = 1#int(args.SERVICE_TIME)
+TW_WIDTH = 1000#int(args.TW_WIDTH)
 
 N_ROLLOUT = int(args.N_ROLLOUT)
 ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
@@ -136,7 +136,7 @@ def read_input(fp):
         results.append([input_data, raw])
     return results
 
-def create_env(n_jobs=99,_input=None, raw=None):
+def create_env(n_jobs,_input=None, raw=None):
 
     class Env(object):
         def __init__(self,n_jobs,_input,raw):
@@ -213,15 +213,15 @@ def create_env(n_jobs=99,_input=None, raw=None):
     env = Env(n_jobs,_input, raw)
     return env
 
-def create_batch_env(batch_size=batch_size,n_jobs=99, instance=None):
+def create_batch_env(batch_size=batch_size,n_jobs=N_JOBS, instance=None):
 
     class BatchEnv(object):
         def __init__(self,batch_size, instance):
             if instance is not None:
-                one_instance = create_env(_input=instance[0], raw=instance[1])
+                one_instance = create_env(n_jobs, _input=instance[0], raw=instance[1])
                 self.envs = [one_instance for i in range(batch_size)]
             else:
-                self.envs = [ create_env(n_jobs) for i in range(batch_size) ]
+                self.envs = [create_env(n_jobs) for i in range(batch_size) ]
 
         def reset(self):
             rets = [ env.reset() for env in self.envs ]
@@ -366,4 +366,10 @@ def roll_out(model,envs,states,n_steps=10,_lambda=0.99,batch_size=batch_size,n_r
             values = 0
 
 #         dl = buffer.gen_datas(values,_lambda = _lambda,batch_size=batch_size)
-        return (nodes,edges),history, np.array(actions_history), np.array(values_history)
+        #print('nodes', len(nodes))
+        #print('edges', len(edges))
+        #print('history', len(history))
+        #print('actions_history', len(actions_history))
+        #print('values_history', len(values_history))
+        #return (nodes,edges),history, np.array(actions_history), np.array(values_history)
+        return (nodes,edges),history, actions_history, values_history
