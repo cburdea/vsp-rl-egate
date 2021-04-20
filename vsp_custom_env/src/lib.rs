@@ -330,10 +330,10 @@ impl Recreate {
 
     #[inline(always)]
     fn try_insert_tour(&self,tour: &Tour,job: &Job) -> (usize,f32) {
-        println!("");
-        println!("########################");
-        println!("tour: {:?}", tour);
-        println!("input job: {:?}", job);
+        //println!("");
+        //println!("########################");
+        //println!("tour: {:?}", tour.tour);
+        //println!("input job: {:?}", job.loc -1);
 
         let states = &tour.states;
         let v = &tour.vehicle;
@@ -347,8 +347,8 @@ impl Recreate {
         }
 
         for (j,w) in states.windows(2).enumerate() {
-            println!("----------------------");
-            println!("j: {:?}, w: {:?}", j, w);
+            //println!("----------------------");
+            //println!("j: {:?}, w: {:?}", j, w);
 
             let delta_stops = if w[0].loc != job.loc && w[1].loc != job.loc {
                 1
@@ -358,7 +358,7 @@ impl Recreate {
 
             //check max_stops
             if v.max_stops > 0 && delta_stops + last_state.stops > v.max_stops {
-                println!("max_stops check failed");
+                //println!("max_stops check failed");
                 continue;
             }
 
@@ -366,25 +366,25 @@ impl Recreate {
             let dt2 = &self.dist_time[job.loc][w[1].loc];
             let dt3 = &self.dist_time[w[0].loc][w[1].loc];
 
-            println!("dt1 {:?}", dt1);
-            println!("dt1 {:?}", dt1);
-            println!("dt1 {:?}", dt1);
+            //println!("dt1 {:?}", dt1);
+            //println!("dt2 {:?}", dt2);
+            //println!("dt3 {:?}", dt3);
 
             //check max_dist
             let delta_d =  dt1.dist + dt2.dist - dt3.dist;
             if v.max_dist > 0f32 && delta_d + last_state.dist > v.max_dist {
-                println!("max_dist check failed");
-                println!("continue");
+                //println!("max_dist check failed");
+                //println!("continue");
                 continue;
             }
 
-            println!("delta_d: {:?}", delta_d);
+            //println!("delta_d: {:?}", delta_d);
 
             let mut t = w[0].time;
             t += dt1.time + w[0].service_time;
             //check self time window
             if t > job.tw.end {
-                println!("time window check failed -> Fahrzeug kommt später an, als der spät möglichste Zeitpunkt zu Beginnen des Jobs");
+                //println!("time window check failed");
                 break;
             }
 
@@ -403,27 +403,33 @@ impl Recreate {
 
 
             if j == 0 {
-                original_time = w[1].time - w[0].time_slack;
+                original_time = dt3.time;
                 time_to_job = dt1.time;
                 time_from_job = w[1].time - (job.tw.start + job.service_time);
+                if time_from_job < dt2.time{time_from_job = dt2.time;}
             } else if j == tour.tour.len(){
-                original_time = w[1].time - w[1].time_slack;
+                original_time = dt3.time;
                 time_to_job = job.tw.start - (w[0].time + w[0].service_time); 
-                time_from_job = w[1].time - (job.tw.start + job.service_time);
+                time_from_job = dt2.time;
+                if time_to_job < dt1.time{time_to_job = dt1.time;}
             } else {
                 original_time = w[1].time - (w[0].time + w[0].service_time);
                 time_to_job = job.tw.start - (w[0].time + w[0].service_time); 
-                time_from_job = dt2.time;
+                time_from_job = w[1].time - (job.tw.start + job.service_time);
+                if time_to_job < dt1.time{time_to_job = dt1.time;}
+                if time_from_job < dt2.time{time_from_job = dt2.time;}
             }
-
             let delta_t = time_to_job + time_from_job - original_time;
-            println!("delta_t: {:?}", delta_t);
+            //println!("time_to_job: {:?}", time_to_job);
+            //println!("time_from_job: {:?}", time_from_job);
+            //println!("original_time: {:?}", original_time);
+            //println!("delta_t: {:?}", delta_t);
 
             // ------------------------------------------------------------------------------------------------------------------------------------------
             
             if t - w[1].time> w[1].time_slack { 
                 debug!("===========>check failed");
-                println!("time slack check failed");
+                //println!("time slack check failed");
                 continue;
             }
 
@@ -431,10 +437,10 @@ impl Recreate {
             
             let delta_cost = tour.calc_delta(delta_d,delta_t,job.weight);
             debug!("===========>delta: {:?},delta_d: {:?},delta_t: {:?}",delta_cost,delta_d,delta_t);
-            println!("::::::::::::>delta: {:?},delta_d: {:?},delta_t: {:?}",delta_cost,delta_d,delta_t);
+            //println!("::::::::::::>delta: {:?},delta_d: {:?},delta_t: {:?}",delta_cost,delta_d,delta_t);
             
             if delta_cost < best {
-                println!("best: {:?} - Verbesserung in w: {:?}",best, w);
+                //println!("delta_cost: {:?} best: {:?} - Verbesserung in w: {:?}",delta_cost, best, w);
                 pos = j;
                 best = delta_cost;
             }
@@ -602,6 +608,7 @@ impl EnvInner {
                 self.sol = cur;
             }
             self.temperature *= self.c;
+           
 
         } else {
             let s = &mut self.sol;
