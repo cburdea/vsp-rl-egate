@@ -27,14 +27,15 @@ if __name__ == "__main__":
     print('Schauen, welche Layer und Nodeanzahl die Autoren verwendet haben')
     print('Warum wird im Training eine Batchzahl größer 1 benötigt?')
     print('Warum lädt das ganze so langsam?')
+    print("ich glaube aktuell werden die Kosten pro Stunde angegeben wobei ich mit Minuten rechne")
 
     args = args()
 
     device = torch.device(args.device)
     ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
-    N_ROLLOUT = int(args.ROLLOUT_STEPS)
+    N_ROLLOUT = int(args.N_ROLLOUT)
 
-    reader.save_plans_as_pickle()
+    #reader.save_plans_as_pickle()
 
     stop = timeit.default_timer()
     print('Data loaded: ', stop - start)
@@ -46,11 +47,11 @@ if __name__ == "__main__":
 
 
     train(model=model,
-          epochs=1,
+          epochs=5,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
           train_steps=4,
-          n_remove=10,
+          n_remove=20,
           )
 
     # train(model, envs, 1000, 20, 10, 4, n_remove=10)

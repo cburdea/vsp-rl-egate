@@ -250,6 +250,7 @@ def roll_out(model, envs, states, n_jobs, batch_size, rollout_steps=10, _lambda=
         _entropy = []
 
         for i in range(rollout_steps):
+            print('rollout_step: ', i)
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
             actions, log_p, values, entropy = model(data, n_remove, greedy, batch_size)
