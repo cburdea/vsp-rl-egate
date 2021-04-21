@@ -186,7 +186,7 @@ def create_vsp_env_from_file(path):
 
     depot_id = int(timetable[5][1][1])
     service_trips = convert_timetable_to_df(timetable)
-    #service_trips = service_trips[:50]
+    service_trips = service_trips[:10]
     #print(service_trips)
     connections = convert_connections_to_df(timetable)
     #print(connections.head())

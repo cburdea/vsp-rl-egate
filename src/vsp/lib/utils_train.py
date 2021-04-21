@@ -25,8 +25,6 @@ LR = float(args.LR)
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 
-test_size_jobs = 2
-
 reward_norm = RunningMeanStd()
 
 vsp_envs = None
@@ -158,7 +156,7 @@ def create_batch_env(batch_size, n_jobs, epoch = 0):
     return BatchEnv(batch_size)
 
 
-def create_replay_buffer(n_jobs, batch_size):
+def create_replay_buffer(n_jobs):
     class Buffer(object):
         def __init__(self, n_jobs=n_jobs):
             super(Buffer, self).__init__()
@@ -169,7 +167,6 @@ def create_replay_buffer(n_jobs, batch_size):
             self.buf_values = []
             self.buf_log_probs = []
             self.n_jobs = n_jobs
-            self.batch_size = batch_size
 
             edges = []
             for i in range(n_jobs + 1):
@@ -244,15 +241,15 @@ def create_replay_buffer(n_jobs, batch_size):
     return Buffer()
 
 
-def roll_out(model, envs, states, n_jobs, batch_size, n_steps=10, _lambda=0.99, n_remove=10, is_last=False, greedy=False):
-    buffer = create_replay_buffer(n_jobs, batch_size)
+def roll_out(model, envs, states, n_jobs, batch_size, rollout_steps=10, _lambda=0.99, n_remove=10, is_last=False, greedy=False):
+    buffer = create_replay_buffer(n_jobs)
     with torch.no_grad():
         model.eval()
         nodes, edges = states
         _sum = 0
         _entropy = []
 
-        for i in range(n_steps):
+        for i in range(rollout_steps):
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
             actions, log_p, values, entropy = model(data, n_remove, greedy, batch_size)
@@ -346,13 +343,13 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
     print("<<<<<<<<<<===================== random mean cost:", np.mean([eval_once(i, ) for i in range(epochs)]))
 
 
-def random_init(envs, n_steps, n_instance, n_jobs):
+def random_init(envs, n_steps, batch_size, n_jobs):
 
     n_remove_init = 10
 
     nodes, edges = envs.reset()
     for i in range(n_steps):
-        actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(n_instance)]
+        actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(batch_size)]
         actions = np.array(actions)
         nodes, edges, rewards = envs.step(actions)
 
@@ -452,7 +449,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         all_datas = []
         for i in range(n_rollout):
             is_last = (i == n_rollout - 1)
-            datas, states = roll_out(model=model, envs=envs, states=states, n_steps=rollout_steps, n_jobs=N_JOBS, batch_size=BATCH_SIZE, n_remove=n_remove, is_last=False)
+            datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, batch_size=BATCH_SIZE, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
 
         # print(datas)
