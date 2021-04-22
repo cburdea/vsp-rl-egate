@@ -6,9 +6,8 @@ import math
 import vsp_custom_env as vrp_env
 import gc
 import torch
-from tabulate import tabulate
-import torch.nn as nn
-import torch.nn.functional as F
+from pathos.multiprocessing import ProcessingPool as Pool
+import multiprocessing
 from torch_geometric.data import Data, DataLoader
 from lib.rms import RunningMeanStd
 from arguments import args
@@ -250,7 +249,6 @@ def roll_out(model, envs, states, n_jobs, batch_size, rollout_steps=10, _lambda=
         _entropy = []
 
         for i in range(rollout_steps):
-            print('rollout_step: ', i)
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
             actions, log_p, values, entropy = model(data, n_remove, greedy, batch_size)
@@ -437,6 +435,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     pre_steps = 100
     log = []
 
+    pool = Pool(4)
+    pool = multiprocessing.Pool()
+
     for epoch in range(epochs):
         print()
         gc.collect()
@@ -448,12 +449,15 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []
+
+
+
         for i in range(n_rollout):
             is_last = (i == n_rollout - 1)
             datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, batch_size=BATCH_SIZE, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
 
-        # print(datas)
+
 
         gc.collect()
 
@@ -463,8 +467,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
             train_once(model, opt, dl, epoch, 0)
 
         mean = np.mean([env.cost for env in envs.envs])
-        jobs = envs.envs[0].vsp_jobs
-        tour = envs.envs[0].vsp_tours
+
+        #jobs = envs.envs[0].vsp_jobs
+        #tour = envs.envs[0].vsp_tours
         #print(tour)
         #timetable = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
         #connections = reader.convert_connections_to_df(timetable)
@@ -482,7 +487,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
 
         if epoch % 100 == 0:
-            torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-%s.model" % epoch)
+            torch.save(model.state_dict(), "model/vsp_model_epoch_%s.model" % epoch)
 
 
     for l in log:
