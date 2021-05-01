@@ -101,6 +101,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/src/vsp/vsp_data_100/solved_schedules/huis_100_2_1_A01_e_B_LH.txt">
+          <value>
+            <Attribute>
+              <option name="separator" value=";" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/vsp_custom_env/src/lib.rs">
           <value>
             <Attribute>

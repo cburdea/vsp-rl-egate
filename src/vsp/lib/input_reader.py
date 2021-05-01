@@ -1,20 +1,22 @@
 import pandas as pd
 import numpy as np
-import random
+import os, sys
 from tabulate import tabulate
 from datetime import datetime
 import pickle
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
-
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
 from arguments import args
 args = args()
-import os
+
 
 N_STEPS = int(args.N_STEPS)
 
 def create_timetable_from_file(path):
-    print('Reading timetable...')
+    print('Reading timetables...')
     with open(path) as f:
         content = f.readlines()
     # you may also want to remove whitespace characters like `\n` at the end of each line
@@ -99,7 +101,7 @@ def read_vehicle_scheduling_from_file(path):
 
 
 def convert_timetable_to_df(timetable):
-    #print(timetable)
+    #print(timetables)
     timetable = timetable[6]
     timetable = np.asarray(timetable)
     timetable = np.transpose(timetable)
@@ -113,11 +115,13 @@ def convert_timetable_to_df(timetable):
     dataset.index = dataset.index.astype(int)
     dataset['FromStopID'] = dataset['FromStopID'].astype(int)
     dataset['ToStopID'] = dataset['ToStopID'].astype(int)
-    dataset['Distance'] = dataset['Distance'].astype(int)
     dataset['DepTime'] = transform_datetime_to_minutes(dataset['DepTime'])
     dataset['DepTime'] = dataset['DepTime'].astype(int)
     dataset['ArrTime'] = transform_datetime_to_minutes(dataset['ArrTime'])
     dataset['ArrTime'] = dataset['ArrTime'].astype(int)
+
+    if 'Distance' in dataset:
+        dataset['Distance'] = dataset['Distance'].astype(int)
 
     return dataset
 
@@ -134,8 +138,9 @@ def convert_connections_to_df(timetable):
 
     dataset['FromStopID'] = dataset['FromStopID'].astype(int)
     dataset['ToStopID'] = dataset['ToStopID'].astype(int)
-    dataset['Distance'] = dataset['Distance'].astype(int)
     dataset['RunTime'] = dataset['RunTime'].astype(int)
+    if 'Distance' in dataset:
+        dataset['Distance'] = dataset['Distance'].astype(int)
 
     return dataset
 
@@ -145,7 +150,10 @@ def transform_datetime_to_minutes(time_string):
     minutes = []
 
     for str in time_string.tolist():
-        datetime_object = datetime.strptime(str[4:], '%H:%M:%S')
+        try:
+            datetime_object = datetime.strptime(str[4:], '%H:%M:%S')
+        except:
+            datetime_object = datetime.strptime(str[2:], '%H:%M:%S')
         time = datetime_object.time()
         time_in_seconds = time.hour * 60 + time.minute
         minutes.append(time_in_seconds)
@@ -182,9 +190,21 @@ def get_dist_time(i_id, j_id, connections):
 def create_vsp_env_from_file(path):
 
     timetable = create_timetable_from_file(path)
+    #for elem in timetables:
+    #    print(tabulate(elem))
 
 
     depot_id = int(timetable[5][1][1])
+    km_cost = int(timetable[2][1][4])
+
+    km_cost = 120
+
+    meter_cost = km_cost / 1000
+    hour_cost = int(timetable[2][1][5])
+    minute_cost = hour_cost/60
+
+
+
     service_trips = convert_timetable_to_df(timetable)
     #service_trips = service_trips[:10]
     #print(service_trips)
@@ -267,8 +287,8 @@ def create_vsp_env_from_file(path):
         },
         "start_loc": 0,
         "end_loc": 0,
-        "fee_per_dist": 120,
-        "fee_per_time": 30,
+        "fee_per_dist": meter_cost,
+        "fee_per_time": minute_cost,
         "fixed_cost": 0,
         "handling_cost_per_weight": 0.0,
         "max_stops": 0,
@@ -335,11 +355,18 @@ def read_optimal_solution(path):
     return blocks, blockelements
 
 
-def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_cost, km_cost):
+def calculate_costs_from_solution(blocks, blockelements, timetable):
 
-    vehicle_costs = (len(blocks)-1) * vehicle_cost
-    dist_costs = 0
-    time_costs = 0 #Implement if needed
+    connections = convert_connections_to_df(timetable)
+
+    km_cost = int(timetable[2][1][4])
+    km_cost = 120
+    meter_cost = km_cost / 1000
+    hour_cost = int(timetable[2][1][5])
+    minute_cost = hour_cost / 60
+
+    dist_costs_total = 0
+    time_costs_total = 0
 
     blockelements = np.asarray(blockelements)
     blockelements = np.transpose(blockelements)
@@ -356,15 +383,32 @@ def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_co
     dataset['ToStopID'] = dataset['ToStopID'].astype(int)
     dataset['ElementType'] = dataset['ElementType'].astype(int)
 
+    dataset['DepTime'] = transform_datetime_to_minutes(dataset['DepTime'])
+    dataset['DepTime'] = dataset['DepTime'].astype(int)
+
+    dataset['ArrTime'] = transform_datetime_to_minutes(dataset['ArrTime'])
+    dataset['ArrTime'] = dataset['ArrTime'].astype(int)
+
     counter = 1
 
+    #calculate dist related costs
     for index, row in dataset.iterrows():
         if row['ElementType'] != 1 and row['ElementType'] != 9:
             counter +=1
             dep_id = row['FromStopID']
             arr_id = row['ToStopID']
             trip_dist, trip_time = get_dist_time(dep_id, arr_id, connections)
-            dist_costs += (trip_dist * km_cost)
+            dist_costs_total += (trip_dist * meter_cost)
+
+    #calculate time related costs
+    for index, row in dataset.iterrows():
+        if row['ElementType'] != 1:
+            time_costs_total += (row['ArrTime'] - row['DepTime']) * minute_cost
+        else:
+            arr_time = row['ArrTime']
+            dep_time = dataset.loc[index+1, :]['DepTime']
+            time_costs_total += (dep_time - arr_time) * minute_cost
+
 
     print('#######################################')
     print('Optimal solution')
@@ -372,12 +416,12 @@ def calculate_costs_from_solution(blocks, blockelements, connections, vehicle_co
     print('Total blocks: ', (len(blocks)-1))
     print('Total constraint violations: ', 0)
     print('---------------------------------------')
-    print('Vehicle cost: ', vehicle_costs)
-    print('Kilometer cost: ', dist_costs * km_cost)
-    print('Total cost: ', vehicle_costs + dist_costs)
+    print('Time cost: ', time_costs_total)
+    print('Kilometer cost: ', dist_costs_total)
+    print('Total cost: ', dist_costs_total + time_costs_total)
     print('#######################################')
 
-    return vehicle_costs + dist_costs
+    return dist_costs_total + time_costs_total
 
 
 def get_loc_dict(jobs):
@@ -430,13 +474,13 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
     print('#######################################')
 
 
-def save_plans_as_pickle():
+def save_plans_as_pickle(amount_nodes):
 
-    all_paths = [x for x in os.listdir("vsp_data") if x[:8] == "Fahrplan"and x[-4:] == ".txt"]
+    all_paths = [x for x in os.listdir("vsp_data_" + amount_nodes +"/timetables") if x[-4:] == ".txt"]
 
     for i, path in enumerate(all_paths):
-        plan = create_vsp_env_from_file('vsp_data/' + path)
-        with open("vsp_data/pickle_train_data/vsp_plan_nr" + str(i) + '.pkl', 'wb') as output:
+        plan = create_vsp_env_from_file('vsp_data_' + amount_nodes +'/timetables/' + path)
+        with open("vsp_data_100/pickle_train_data/vsp_instance_nr" + str(i) + '.pkl', 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
 
 
@@ -447,18 +491,24 @@ def load_vsp_envs_from_pickle(path):
     for object_path in all_paths:
         with open(path + "/" +object_path, 'rb') as handle:
             envs.append(pickle.load(handle))
+
     return envs
 
 
 if __name__ == "__main__":
-    blocks, blockelements = read_optimal_solution("../vsp_data/Umlaufplan_213_1_1_L.txt")
 
-    timetable = create_timetable_from_file("../vsp_data/Fahrplan_213_1_1_L.txt")
-    for elem in timetable:
-        print(tabulate(elem))
+
+    timetable = create_timetable_from_file("../vsp_data_100/timetables/huis_100_2_1_A01.txt")
+    #for elem in timetable:
+    #    print(tabulate(elem))
+    #create_vsp_env_from_file("../vsp_data_100/timetables/huis_100_2_1_A01.txt")
+
+    blocks, blockelements = read_optimal_solution("../vsp_data_100/solved_schedules/huis_100_2_1_A01_e_B.txt")
     connections = convert_connections_to_df(timetable)
 
-    #print(tabulate(blocks))
-    #print(tabulate(blockelements))
+    print(tabulate(blocks))
+    print(tabulate(blockelements))
 
-    print(calculate_costs_from_solution(blocks, blockelements, connections, 200000, 1))
+    print(calculate_costs_from_solution(blocks, blockelements, timetable))
+
+    print("Checken, was Trip Typ Nr. 9 ist bei der Berechnung der korrekten Lösung")

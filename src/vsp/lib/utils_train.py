@@ -430,7 +430,7 @@ def inspect_env(envs):
 def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
 
-    initialize_vsp_envs('vsp_data/pickle_train_data')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data')
 
     pre_steps = 100
     log = []
@@ -471,9 +471,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         #jobs = envs.envs[0].vsp_jobs
         #tour = envs.envs[0].vsp_tours
         #print(tour)
-        #timetable = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
-        #connections = reader.convert_connections_to_df(timetable)
-        #reader.check_solution_consistency(tour, jobs, connections, timetable, 168, 200000, 1)
+        #timetables = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
+        #connections = reader.convert_connections_to_df(timetables)
+        #reader.check_solution_consistency(tour, jobs, connections, timetables, 168, 200000, 1)
 
 
         print("=================>>>>>>>> improvement: {}% mean cost: {}".format(round((1-(mean/before_mean_cost))*100,2),mean))

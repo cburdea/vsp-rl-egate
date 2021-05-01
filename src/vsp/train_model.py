@@ -24,10 +24,7 @@ if __name__ == "__main__":
     print('unterschied N-Steps und Rollout Steps nachfragen: Warum nicht gleich?')
     print('Terminologie hin zu VSP')
     print('Forken zu VSP')
-    print('Schauen, welche Layer und Nodeanzahl die Autoren verwendet haben')
     print('Warum wird im Training eine Batchzahl größer 1 benötigt?')
-    print('Warum lädt das ganze so langsam?')
-    print("ich glaube aktuell werden die Kosten pro Stunde angegeben wobei ich mit Minuten rechne")
 
     args = args()
 
@@ -35,7 +32,7 @@ if __name__ == "__main__":
     ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
     N_ROLLOUT = int(args.N_ROLLOUT)
 
-    #reader.save_plans_as_pickle()
+    reader.save_plans_as_pickle("100")
 
     stop = timeit.default_timer()
     print('Data loaded: ', stop - start)
@@ -45,14 +42,15 @@ if __name__ == "__main__":
 
     #model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest_custom.model"))
 
-
+    '''
     train(model=model,
           epochs=5,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
           train_steps=4,
-          n_remove=20,
+          n_remove=10,
           )
+    '''
 
     # train(model, envs, 1000, 20, 10, 4, n_remove=10)
 

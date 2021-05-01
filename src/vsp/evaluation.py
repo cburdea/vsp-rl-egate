@@ -38,7 +38,7 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load("model/cpu_model-0.model"))
 
     #inputs = read_input("data/vrptw_99.npy")
-    inputs = input_reader.load_vsp_envs_from_pickle("vsp_data/pickle_test_data")
+    inputs = input_reader.load_vsp_envs_from_pickle("vsp_data_100/pickle_test_data")
 
 
     def eval(batch_size, n_steps=100, instance=None):
