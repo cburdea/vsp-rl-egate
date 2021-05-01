@@ -435,9 +435,6 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     pre_steps = 100
     log = []
 
-    pool = Pool(4)
-    pool = multiprocessing.Pool()
-
     for epoch in range(epochs):
         print()
         gc.collect()

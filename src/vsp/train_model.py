@@ -32,7 +32,7 @@ if __name__ == "__main__":
     ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
     N_ROLLOUT = int(args.N_ROLLOUT)
 
-    reader.save_plans_as_pickle("100")
+    #reader.save_plans_as_pickle("100")
 
     stop = timeit.default_timer()
     print('Data loaded: ', stop - start)
@@ -42,15 +42,15 @@ if __name__ == "__main__":
 
     #model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest_custom.model"))
 
-    '''
+
     train(model=model,
-          epochs=5,
+          epochs=40,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
-          train_steps=4,
+          train_steps=1,
           n_remove=10,
           )
-    '''
+
 
     # train(model, envs, 1000, 20, 10, 4, n_remove=10)
 

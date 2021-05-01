@@ -283,7 +283,7 @@ def create_vsp_env_from_file(path):
         "cap": 1,
         "tw": {
             "start": 0,
-            "end": 1440,
+            "end": 2880,
         },
         "start_loc": 0,
         "end_loc": 0,
@@ -498,17 +498,15 @@ def load_vsp_envs_from_pickle(path):
 if __name__ == "__main__":
 
 
-    timetable = create_timetable_from_file("../vsp_data_100/timetables/huis_100_2_1_A01.txt")
-    #for elem in timetable:
-    #    print(tabulate(elem))
+    timetable = create_timetable_from_file("../vsp_data_100/timetables/huis_100_2_1_A02.txt")
+    for elem in timetable:
+        print(tabulate(elem))
     #create_vsp_env_from_file("../vsp_data_100/timetables/huis_100_2_1_A01.txt")
 
     blocks, blockelements = read_optimal_solution("../vsp_data_100/solved_schedules/huis_100_2_1_A01_e_B.txt")
     connections = convert_connections_to_df(timetable)
 
-    print(tabulate(blocks))
-    print(tabulate(blockelements))
+    #print(tabulate(blocks))
+    #print(tabulate(blockelements))
 
-    print(calculate_costs_from_solution(blocks, blockelements, timetable))
-
-    print("Checken, was Trip Typ Nr. 9 ist bei der Berechnung der korrekten Lösung")
+    #print(calculate_costs_from_solution(blocks, blockelements, timetable))
