@@ -6,7 +6,6 @@ import math
 import vsp_custom_env as vrp_env
 import gc
 import torch
-from pathos.multiprocessing import ProcessingPool as Pool
 import multiprocessing
 from torch_geometric.data import Data, DataLoader
 from lib.rms import RunningMeanStd
@@ -433,7 +432,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     initialize_vsp_envs('vsp_data_100/pickle_train_data')
 
     pre_steps = 100
-    log = []
+    log = [["Epoch", "Before Cost", "After Cost"]]
 
     for epoch in range(epochs):
         print()
@@ -447,14 +446,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         all_datas = []
 
-
-
         for i in range(n_rollout):
             is_last = (i == n_rollout - 1)
             datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, batch_size=BATCH_SIZE, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
-
-
 
         gc.collect()
 
@@ -472,13 +467,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         #connections = reader.convert_connections_to_df(timetables)
         #reader.check_solution_consistency(tour, jobs, connections, timetables, 168, 200000, 1)
 
-
         print("=================>>>>>>>> improvement: {}% mean cost: {}".format(round((1-(mean/before_mean_cost))*100,2),mean))
         cost = np.mean([env.cost for env in envs.envs])
 
         log.append([[epoch,before_cost, cost]])
-
-        torch.save(model.state_dict(), "model/cpu_model-%s.model" % epoch)
 
         if epoch % 10 == 0:
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
