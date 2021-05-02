@@ -476,11 +476,11 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
 
 def save_plans_as_pickle(amount_nodes):
 
-    all_paths = [x for x in os.listdir("vsp_data_" + amount_nodes +"/timetables") if x[-4:] == ".txt"]
+    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_" + amount_nodes +"/timetables") if x[-4:] == ".txt"]
 
     for i, path in enumerate(all_paths):
-        plan = create_vsp_env_from_file('vsp_data_' + amount_nodes +'/timetables/' + path)
-        with open("vsp_data_100/pickle_train_data/vsp_instance_nr" + str(i) + '.pkl', 'wb') as output:
+        plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_' + amount_nodes +'/timetables/' + path)
+        with open(parentdir + '/' + "vsp_data_100/pickle_train_data/vsp_instance_nr" + str(i) + '.pkl', 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
 
 
