@@ -1,7 +1,11 @@
 import numpy as np
 import json
+import os, sys
+start = timeit.default_timer()
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
 import random
-import math
 # import vrp_env
 import vsp_custom_env as vrp_env
 import gc
@@ -12,7 +16,6 @@ from lib.rms import RunningMeanStd
 from arguments import args
 import lib.input_reader as reader
 import csv
-import argparse
 
 args = args()
 
