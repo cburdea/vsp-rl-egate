@@ -486,7 +486,7 @@ def save_plans_as_pickle(amount_nodes):
 
 def load_vsp_envs_from_pickle(path):
     envs = []
-    all_paths = [x for x in os.listdir(path) if x[-4:] == ".pkl"]
+    all_paths = [x for x in os.listdir(parentdir + path) if x[-4:] == ".pkl"]
 
     for object_path in all_paths:
         with open(path + "/" +object_path, 'rb') as handle:
