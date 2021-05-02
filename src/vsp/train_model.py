@@ -1,5 +1,9 @@
 import timeit
+import os, sys
 start = timeit.default_timer()
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
 
 import numpy as np
 import json
