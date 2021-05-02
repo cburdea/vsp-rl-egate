@@ -489,7 +489,7 @@ def load_vsp_envs_from_pickle(path):
     all_paths = [x for x in os.listdir(parentdir + '/' +path) if x[-4:] == ".pkl"]
 
     for object_path in all_paths:
-        with open(path + "/" +object_path, 'rb') as handle:
+        with open(parentdir + '/' + path + "/" +object_path, 'rb') as handle:
             envs.append(pickle.load(handle))
 
     return envs
