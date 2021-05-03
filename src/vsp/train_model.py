@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
 
     train(model=model,
-          epochs=40,
+          epochs=2,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
           train_steps=1,
