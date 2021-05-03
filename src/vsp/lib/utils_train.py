@@ -478,7 +478,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
 
         if epoch % 100 == 0:
-            torch.save(model.state_dict(), parentdir + '/' + "model/vsp_model_epoch_%s.model" % epoch)
+            torch.save(model.state_dict(), "model/vsp_model_epoch_%s.model" % epoch)
 
 
     for l in log:
