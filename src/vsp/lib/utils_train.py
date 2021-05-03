@@ -480,8 +480,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         if epoch % 100 == 0:
             torch.save(model.state_dict(), parentdir + '/' + "model/vsp_model_epoch_%s.model" % epoch)
 
-
+    log_path = parentdir + '/' + 'log.csv'
     for l in log:
-        with open(r'log.csv', 'a') as f:
+
+        with open(log_path, 'a') as f:
             writer = csv.writer(f)
             writer.writerow(l)

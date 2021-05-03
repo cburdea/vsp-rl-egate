@@ -35,6 +35,7 @@ if __name__ == "__main__":
     device = torch.device(args.device)
     ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
     N_ROLLOUT = int(args.N_ROLLOUT)
+    N_EPOCHS = int(args.N_EPOCHS)
 
     #reader.save_plans_as_pickle("100")
 
@@ -48,10 +49,10 @@ if __name__ == "__main__":
 
 
     train(model=model,
-          epochs=2,
+          epochs=N_EPOCHS,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
-          train_steps=1,
+          train_steps=4,
           n_remove=10,
           )
 
