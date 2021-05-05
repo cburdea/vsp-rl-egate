@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     model = Model(input_node_dim=8, hidden_node_dim=64, input_edge_dim=2, hidden_edge_dim=16)
     model.to(device)
-    net = torch.nn.DataParallel(model, device_ids=[0,1], output_device=device)
+    #net = torch.nn.DataParallel(model, device_ids=[0,1], output_device=device)
 
     #model.load_state_dict(torch.load("model/v8-tw-iter200-rm25-latest_custom.model"))
 

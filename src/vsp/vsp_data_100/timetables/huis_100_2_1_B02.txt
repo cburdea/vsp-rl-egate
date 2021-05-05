@@ -1,4 +1,4 @@
-* Haltestellen
+                                                                                                                                                                                                    * Haltestellen
 *
 $STOPPOINT:ID;Code;Name
 0;0;0

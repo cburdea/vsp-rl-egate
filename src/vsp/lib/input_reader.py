@@ -1,3 +1,5 @@
+import random
+
 import pandas as pd
 import numpy as np
 import os, sys
@@ -187,26 +189,30 @@ def get_dist_time(i_id, j_id, connections):
             return False, False
 
 
-def create_vsp_env_from_file(path):
+def create_vsp_env_from_file(path, start_depot=-1):
 
     timetable = create_timetable_from_file(path)
     #for elem in timetables:
     #    print(tabulate(elem))
 
-
-    depot_id = int(timetable[5][1][1])
+    if start_depot == -1:
+        depot_id = int(timetable[5][1][1])
+    else:
+        depot_id = start_depot
     km_cost = int(timetable[2][1][4])
-
-    km_cost = 120
-
+    km_cost = 120 + random.randint(-40, 40)
     meter_cost = km_cost / 1000
+
     hour_cost = int(timetable[2][1][5])
+    hour_cost = hour_cost + random.randint(-10, 10)
     minute_cost = hour_cost/60
 
 
 
     service_trips = convert_timetable_to_df(timetable)
-    #service_trips = service_trips[:10]
+    # service_trips = service_trips[:10]
+
+    service_trips = service_trips.sample(n = 100)
     #print(service_trips)
     connections = convert_connections_to_df(timetable)
     #print(connections.head())
@@ -259,7 +265,7 @@ def create_vsp_env_from_file(path):
                 'time': time
             })
         dist_time.append(service_i_dist_time)
-        print('> Initialized {}% of nodes'.format(int(round((len(dist_time)/amount_nodes)*100,0))))
+        #print('> Initialized {}% of nodes'.format(int(round((len(dist_time)/amount_nodes)*100,0))))
 
     # Initialize adjs
     # TODO: Figure out what the purpose of adjs is
@@ -495,16 +501,33 @@ def load_vsp_envs_from_pickle(path):
     return envs
 
 
+def multiply_instances(path, multiply_factor = 9, amount_nodes = "100"):
+    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_" + amount_nodes + "/timetables>100") if x[-4:] == ".txt"]
+
+    counter = 0
+
+    for i, path in enumerate(all_paths):
+        print("instance: ", i)
+        for depot_nr in range(0,multiply_factor):
+            for dep_instance in range(0,10):
+                print(i,depot_nr, dep_instance)
+                plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_' + amount_nodes + '/timetables>100/' + path, depot_nr)
+                with open(parentdir + '/' + "vsp_data_100/pickle_train_data/vsp_instance_nr" + str(counter) +'_depot'+ str(depot_nr) +'_v02.pkl', 'wb') as output:
+                    pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
+                counter += 1
+                print(counter)
+
+
 if __name__ == "__main__":
+    multiply_instances("100")
 
-
-    timetable = create_timetable_from_file("../vsp_data_100/timetables/huis_100_2_1_A02.txt")
-    for elem in timetable:
-        print(tabulate(elem))
+    #timetable = create_timetable_from_file("../vsp_data_100/timetables/huis_100_2_1_A02.txt")
+    #for elem in timetable:
+    #    print(tabulate(elem))
     #create_vsp_env_from_file("../vsp_data_100/timetables/huis_100_2_1_A01.txt")
 
-    blocks, blockelements = read_optimal_solution("../vsp_data_100/solved_schedules/huis_100_2_1_A01_e_B.txt")
-    connections = convert_connections_to_df(timetable)
+    #blocks, blockelements = read_optimal_solution("../vsp_data_100/solved_schedules/huis_100_2_1_A01_e_B.txt")
+    #connections = convert_connections_to_df(timetable)
 
     #print(tabulate(blocks))
     #print(tabulate(blockelements))

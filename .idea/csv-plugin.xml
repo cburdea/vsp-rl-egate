@@ -80,6 +80,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/src/vsp/lib/input_reader.py">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/src/vsp/lib/utils_train.py">
           <value>
             <Attribute>
