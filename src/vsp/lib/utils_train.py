@@ -438,10 +438,11 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     log = [["Epoch", "Before Cost", "After Cost"]]
 
     stop = timeit.default_timer()
-    print('Data loaded: ', stop - start)
+    print('Seconds for data loading: ', stop - start)
 
 
     for epoch in range(epochs):
+        start = timeit.default_timer()
         print()
         gc.collect()
         envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
@@ -473,8 +474,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         #timetables = reader.create_timetable_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
         #connections = reader.convert_connections_to_df(timetables)
         #reader.check_solution_consistency(tour, jobs, connections, timetables, 168, 200000, 1)
-
-        print("=================>>>>>>>> improvement: {}% mean cost: {}".format(round((1-(mean/before_mean_cost))*100,2),mean))
+        stop = timeit.default_timer()
+        time = (stop - start) / 60
+        print("=================>>>>>>>> improvement: {}% mean cost: {} minutes: {}".format(round((1-(mean/before_mean_cost))*100,2),mean, time))
         cost = np.mean([env.cost for env in envs.envs])
 
         log.append([[epoch,before_cost, cost]])
@@ -485,8 +487,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         if epoch % 100 == 0:
             torch.save(model.state_dict(), parentdir + '/' + "model/vsp_model_epoch_%s.model" % epoch)
 
-    stop = timeit.default_timer()
-    print('Time: ', (stop - start)/60)
+
 
     log_path = parentdir + '/' + 'log.csv'
     for l in log:
