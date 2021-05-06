@@ -1,6 +1,6 @@
-import timeit
+
 import os, sys
-start = timeit.default_timer()
+
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
@@ -39,8 +39,6 @@ if __name__ == "__main__":
 
     #reader.save_plans_as_pickle("100")
 
-    stop = timeit.default_timer()
-    print('Data loaded: ', stop - start)
 
     model = Model(input_node_dim=8, hidden_node_dim=64, input_edge_dim=2, hidden_edge_dim=16)
     model.to(device)
@@ -62,6 +60,5 @@ if __name__ == "__main__":
 
     #torch.save(model.state_dict(), "model/v8-tw-iter200-rm25-latest_custom.model")
 
-    stop = timeit.default_timer()
-    print('Time: ', (stop - start)/60)
+
     gc.collect()

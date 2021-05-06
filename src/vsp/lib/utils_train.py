@@ -15,6 +15,7 @@ from lib.rms import RunningMeanStd
 from arguments import args
 import lib.input_reader as reader
 import csv
+import timeit
 
 args = args()
 
@@ -430,11 +431,15 @@ def inspect_env(envs):
 
 def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
-
+    start = timeit.default_timer()
     initialize_vsp_envs('vsp_data_100/pickle_train_data')
 
     pre_steps = 100
     log = [["Epoch", "Before Cost", "After Cost"]]
+
+    stop = timeit.default_timer()
+    print('Data loaded: ', stop - start)
+
 
     for epoch in range(epochs):
         print()
@@ -479,6 +484,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         if epoch % 100 == 0:
             torch.save(model.state_dict(), parentdir + '/' + "model/vsp_model_epoch_%s.model" % epoch)
+
+    stop = timeit.default_timer()
+    print('Time: ', (stop - start)/60)
 
     log_path = parentdir + '/' + 'log.csv'
     for l in log:
