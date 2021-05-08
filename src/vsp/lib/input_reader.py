@@ -16,6 +16,7 @@ args = args()
 
 
 N_STEPS = int(args.N_STEPS)
+N_JOBS = int(args.N_JOBS)
 
 def create_timetable_from_file(path):
     print('Reading timetables...')
@@ -130,6 +131,8 @@ def convert_timetable_to_df(timetable):
 
 def convert_connections_to_df(timetable):
     timetable = timetable[7]
+    #print(timetable)
+
     timetable = np.asarray(timetable)
     timetable = np.transpose(timetable)
 
@@ -151,14 +154,18 @@ def transform_datetime_to_minutes(time_string):
 
     minutes = []
 
-    for str in time_string.tolist():
+    for time_str in time_string.tolist():
+
         try:
-            datetime_object = datetime.strptime(str[4:], '%H:%M:%S')
+            datetime_object = datetime.strptime(time_str[4:], '%H:%M:%S')
         except:
-            datetime_object = datetime.strptime(str[2:], '%H:%M:%S')
+            datetime_object = datetime.strptime(time_str[2:], '%H:%M:%S')
+
+        day_shift = time_str.split(':')
+        day_shift = int(day_shift[0])
         time = datetime_object.time()
-        time_in_seconds = time.hour * 60 + time.minute
-        minutes.append(time_in_seconds)
+        time_in_minutes = (day_shift * 1440) + (time.hour * 60) + time.minute
+        minutes.append(time_in_minutes)
 
     return minutes
 
@@ -192,27 +199,29 @@ def get_dist_time(i_id, j_id, connections):
 def create_vsp_env_from_file(path, start_depot=-1):
 
     timetable = create_timetable_from_file(path)
-    #for elem in timetables:
+    #for elem in timetable:
     #    print(tabulate(elem))
 
     if start_depot == -1:
         depot_id = int(timetable[5][1][1])
+        print("Depot ID: ", depot_id)
     else:
         depot_id = start_depot
     km_cost = int(timetable[2][1][4])
-    km_cost = 120 + random.randint(-40, 40)
+    km_cost = 0
     meter_cost = km_cost / 1000
 
     hour_cost = int(timetable[2][1][5])
-    hour_cost = hour_cost + random.randint(-10, 10)
+    hour_cost = 60
     minute_cost = hour_cost/60
 
-
-
     service_trips = convert_timetable_to_df(timetable)
-    # service_trips = service_trips[:10]
+    #print(service_trips.to_string())
 
-    service_trips = service_trips.sample(n = 100)
+    # service_trips = service_trips[:10]
+    if len(service_trips.index)>N_JOBS:
+        print("Downsizing input problem to N_STEPS: ", N_JOBS)
+        service_trips = service_trips.sample(n = 100)
     #print(service_trips)
     connections = convert_connections_to_df(timetable)
     #print(connections.head())
@@ -227,7 +236,7 @@ def create_vsp_env_from_file(path, start_depot=-1):
         jobs.append({
         "id": index,
         "loc": loc_counter,
-        "name": str(index),
+        "name": "ID:"+str(index),
         "x": 1,
         "y": 1,
         "weight": 0,
@@ -239,6 +248,7 @@ def create_vsp_env_from_file(path, start_depot=-1):
         "job_type": "Pickup",
         })
         loc_counter += 1
+    #print(tabulate(jobs))
 
     # Add depot
     service_trips_depot = service_trips[1:2].copy()
@@ -307,8 +317,8 @@ def create_vsp_env_from_file(path, start_depot=-1):
         "cost_per_absent": 99999999999999,
         "jobs": jobs,
         "depot": [0,0],
-        #"l_max": 100,
-        #"c1": 100,
+        "l_max": 100,
+        "c1": 100,
         "adjs": adjs,
         "temperature": 100,
         "c2": alpha_T,
@@ -369,6 +379,7 @@ def calculate_costs_from_solution(blocks, blockelements, timetable):
     km_cost = 120
     meter_cost = km_cost / 1000
     hour_cost = int(timetable[2][1][5])
+    print("hour_cost: ", hour_cost)
     minute_cost = hour_cost / 60
 
     dist_costs_total = 0
@@ -440,13 +451,24 @@ def get_loc_dict(jobs):
     return loc_dict
 
 
-def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id, vehicle_cost, km_cost):
+def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id, vehicle_cost):
+
+    #print(tabulate(timetable[6]))
+    km_cost = int(timetable[2][1][4])
+    km_cost = 120
+    m_cost = km_cost / 1000
+
+    hour_cost = int(timetable[2][1][5])
+    hour_cost = 60
+    minute_cost = hour_cost / 60
 
     loc_dict = get_loc_dict(jobs)
     dist_cost = 0
     constraint_violations = 0
 
     timetable = convert_timetable_to_df(timetable)
+
+    # Calculate distance costs
     for tour in tour_loc:
         last_station = depot_id
         for index, job in enumerate(tour):
@@ -459,7 +481,8 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
                 last_arr_time = timetable.loc[loc_dict[tour[index-1]+1], 'ArrTime']
                 if last_arr_time + travel_time > service_start_time:
                     constraint_violations += 1
-                    print('------------------------\npos:{}, trip_id: {}'.format(job, trip_id))
+                    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                    print('npos:{}, from trip_id: {} to trip_id: {}'.format(job, tour[index-1], trip_id))
                     print('Violation for service {} to {}'.format(last_station, service_start_id))
                     print('last_arr_time: ', last_arr_time)
                     print('travel_time: ', travel_time)
@@ -468,6 +491,43 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
         last_dist, last_time = get_dist_time(last_station, depot_id, connections)
         dist_cost += last_dist
 
+    # Calculate time costs
+    total_time = 0
+    for tour in tour_loc:
+        print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        for index, job in enumerate(tour):
+            trip_id = loc_dict[job + 1]
+            if index == 0:
+                service_start_id = timetable.loc[trip_id, 'FromStopID']
+                dist, travel_time = get_dist_time(depot_id, service_start_id, connections)
+                total_time += travel_time
+                print("anfang:", travel_time)
+            elif index == len(tour)-1:
+                # Time to last trip
+                previous_job = tour[index - 1]
+                last_trip_id = loc_dict[previous_job + 1]
+                current_trip_id = loc_dict[job + 1]
+                last_arr_time = timetable.loc[last_trip_id, 'ArrTime']
+                curr_dep_time = timetable.loc[current_trip_id, 'DepTime']
+                gap_time = curr_dep_time - last_arr_time
+                print("mitte:", gap_time)
+                total_time += gap_time
+
+                # Time from last trip to depot
+                service_stop_id = timetable.loc[trip_id, 'ToStopID']
+                dist, travel_time = get_dist_time(service_stop_id, depot_id, connections)
+                total_time += travel_time
+                print("ende:", travel_time)
+            else:
+                previous_job = tour[index-1]
+                last_trip_id = loc_dict[previous_job + 1]
+                current_trip_id = loc_dict[job + 1]
+                last_arr_time = timetable.loc[last_trip_id, 'ArrTime']
+                curr_dep_time = timetable.loc[current_trip_id, 'DepTime']
+                gap_time = curr_dep_time - last_arr_time
+                print("mitte:", gap_time)
+                total_time += gap_time
+
     print('#######################################')
     print('Consistency check:')
     print('Total jobs: ', len([item for sublist in tour_loc for item in sublist]))
@@ -475,19 +535,10 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
     print('Total constraint violations: ', constraint_violations)
     print('---------------------------------------')
     print('Vehicle cost: ', len(tour_loc) * vehicle_cost)
-    print('Kilometer cost: ', dist_cost * km_cost)
-    print('Total cost: ', (len(tour_loc) * vehicle_cost)+(dist_cost * km_cost))
+    print('Time cost: ', total_time * minute_cost)
+    print('Kilometer cost: ', dist_cost * m_cost)
+    print('Total cost: ', (len(tour_loc) * vehicle_cost) + (dist_cost * m_cost) + (total_time * minute_cost))
     print('#######################################')
-
-
-def save_plans_as_pickle(amount_nodes):
-
-    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_" + amount_nodes +"/timetables") if x[-4:] == ".txt"]
-
-    for i, path in enumerate(all_paths):
-        plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_' + amount_nodes +'/timetables/' + path)
-        with open(parentdir + '/' + "vsp_data_100/pickle_train_data/vsp_instance_nr" + str(i) + '.pkl', 'wb') as output:
-            pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
 
 
 def load_vsp_envs_from_pickle(path):
@@ -501,35 +552,44 @@ def load_vsp_envs_from_pickle(path):
     return envs
 
 
-def multiply_instances(path, multiply_factor = 9, amount_nodes = "100"):
-    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_" + amount_nodes + "/timetables>100") if x[-4:] == ".txt"]
+def save_plan_as_pickle(path):
+
+        plan = create_vsp_env_from_file(path)
+        with open(parentdir + '/' + "vsp_data_100/dummy_envs/test_vsp_instance.pkl", 'wb') as output:
+            pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
+
+
+def multiply_instances_to_pickle(path, multiply_factor = 7, amount_nodes = "100"):
+    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_" + amount_nodes + "/timetables>100_v4") if x[-4:] == ".txt"]
 
     counter = 0
 
     for i, path in enumerate(all_paths):
         print("instance: ", i)
         for depot_nr in range(0,multiply_factor):
-            for dep_instance in range(0,10):
+            for dep_instance in range(0,5):
                 print(i,depot_nr, dep_instance)
-                plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_' + amount_nodes + '/timetables>100/' + path, depot_nr)
-                with open(parentdir + '/' + "vsp_data_100/pickle_train_data/vsp_instance_nr" + str(counter) +'_depot'+ str(depot_nr) +'_v02.pkl', 'wb') as output:
+                plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_' + amount_nodes + '/timetables>100_v4/' + path, depot_nr)
+                with open(parentdir + '/' + "vsp_data_100/pickle_train_data/vsp_instance_nr" + str(counter) +'_depot'+ str(depot_nr) +'_v04.pkl', 'wb') as output:
                     pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
                 counter += 1
                 print(counter)
 
 
 if __name__ == "__main__":
-    multiply_instances("100")
+    #save_plan_as_pickle("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
+    #multiply_instances_to_pickle("100")
 
-    #timetable = create_timetable_from_file("../vsp_data_100/timetables/huis_100_2_1_A02.txt")
+    timetable = create_timetable_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
     #for elem in timetable:
     #    print(tabulate(elem))
-    #create_vsp_env_from_file("../vsp_data_100/timetables/huis_100_2_1_A01.txt")
+    create_vsp_env_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
 
-    #blocks, blockelements = read_optimal_solution("../vsp_data_100/solved_schedules/huis_100_2_1_A01_e_B.txt")
-    #connections = convert_connections_to_df(timetable)
+
+    blocks, blockelements = read_optimal_solution("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/solved_schedules/huis_100_2_1_A01_e_M.txt")
+    connections = convert_connections_to_df(timetable)
 
     #print(tabulate(blocks))
     #print(tabulate(blockelements))
 
-    #print(calculate_costs_from_solution(blocks, blockelements, timetable))
+    print(calculate_costs_from_solution(blocks, blockelements, timetable))

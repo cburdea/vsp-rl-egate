@@ -29,6 +29,7 @@ if __name__ == "__main__":
     print('Terminologie hin zu VSP')
     print('Forken zu VSP')
     print('Warum wird im Training eine Batchzahl größer 1 benötigt?')
+    print('Probleme nochmal neu berechnen, falls parameter angepasst werden müssen')
 
     args = args()
 
@@ -51,7 +52,7 @@ if __name__ == "__main__":
           epochs=N_EPOCHS,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
-          train_steps=4,
+          train_steps=1,
           n_remove=10,
           )
 
