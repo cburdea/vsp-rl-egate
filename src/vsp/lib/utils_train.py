@@ -5,11 +5,8 @@ currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 import random
-import vsp_custom_env as vrp_env
-#import vrp_env
 import gc
 import torch
-import multiprocessing
 from torch_geometric.data import Data, DataLoader
 from lib.rms import RunningMeanStd
 from arguments import args
@@ -29,10 +26,16 @@ LR = float(args.LR)
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
+eval_mode = str(args.EVAL_MODE)
+
+if eval_mode == "operational":
+    import vsp_custom_env as vsp_env
+else:
+    import vrp_env as vsp_env
 
 reward_norm = RunningMeanStd()
-randomize_input = False
 vsp_envs = None
+
 
 def initialize_vsp_envs(path):
     global vsp_envs
@@ -47,11 +50,13 @@ def create_env(n_jobs, _input=None, epoch = 0):
             if _input == None:
                 raw = 0
                 _input = vsp_envs[random.randint(0, len(vsp_envs) - 1)]
-                if randomize_input:
-                    _input['vehicles'][0]['fee_per_dist'] = round(random.randint(80, 200) / 1000, 3)
-                    _input['vehicles'][0]['fee_per_time'] = round(random.randint(35, 120) / 60, 2)
-                    _input['temperatur'] = init_T
-                    _input['c2'] = (final_T / init_T) ** (1.0 / N_STEPS)
+                _input['c2'] = (final_T / init_T) ** (1.0 / N_STEPS)
+                _input['temperature'] = init_T
+                if eval_mode == "operational":
+                    _input['vehicles'][0]['fixed_costs'] = 0
+                else:
+                    _input['vehicles'][0]['fee_per_time'] = 0
+
                 #_input, raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
 
             self.input = _input
@@ -64,7 +69,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
             self.dists = np.array([[[x['dist'] / self.max_dist_custom] for x in row] for row in dist_time])
 
         def reset(self):
-            self.env = vrp_env.Env(json.dumps(self.input))
+            self.env = vsp_env.Env(json.dumps(self.input))
             self.mapping = {}
             self.cost = 0.0
             self.best = None
@@ -349,7 +354,7 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
 
         return np.mean([env.cost for env in envs.envs])
 
-    print("<<<<<<<<<<===================== random mean cost:", np.mean([eval_once(i, ) for i in range(epochs)]))
+    print(">>random mean cost:", np.mean([eval_once(i, ) for i in range(epochs)]))
 
 
 def random_init(envs, n_steps, batch_size, n_jobs):
@@ -369,30 +374,26 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    test_instance_path = "/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt"
-    #test_instance_path = "/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/Fahrplan_213_1_1_L.txt"
+    initialize_vsp_envs('vsp_data_100/pickle_train_data')
+    #initialize_vsp_envs('vsp_data_100/dummy_envs')
 
-    #reader.save_plan_as_pickle(test_instance_path)
-
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
-
-    pre_steps = 100
     log = [["Epoch", "Before Cost", "After Cost"]]
 
-    stop = timeit.default_timer()
-    print('Seconds for data loading: ', stop - start)
-
+    print('Seconds for data loading: ', timeit.default_timer() - start)
 
     for epoch in range(epochs):
         start = timeit.default_timer()
-        print('>\n>\n>\n>')
         gc.collect()
+
         envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
-        #states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
-        states = envs.reset()
+
+        pre_steps = random.randint(0,101)
+        states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
+        #states = envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
-        print("=================>>>>>>>> before mean cost:", before_mean_cost)
+
+        print('\n---------------------------------------------------------------------------------------------------------------')
+        print("> before mean cost:", before_mean_cost)
         before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []
@@ -407,36 +408,34 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
             gc.collect()
             train_once(model, opt, dl, epoch, 0)
 
-        t = [91,81,93,83,95,85,97,87,99,39,50,2,13,4,15,7,18,60,72,63,75,66,78,19,80,92,82,94,84,96,86,98,88,40,51,43,54,45,56,47,58,10,41,52,5,16,8,0,11,3,14,6,17,9,20,31,42,53,44,55,46,57,48,70,61,73,64,76,67,79,69,21,32,23,34,26,37,29,89,90,30,22,33,24,35,27,38,49,59,71,62,74,65,77,68,1,12,25,36,28]
-        envs.envs[0].step(t)
         mean = np.mean([env.cost for env in envs.envs])
 
+        """
+        t = [91,81,93,83,95,85,97,87,99,39,50,2,13,4,15,7,18,60,72,63,75,66,78,19,80,92,82,94,84,96,86,98,88,40,51,43,54,45,56,47,58,10,41,52,5,16,8,0,11,3,14,6,17,9,20,31,42,53,44,55,46,57,48,70,61,73,64,76,67,79,69,21,32,23,34,26,37,29,89,90,30,22,33,24,35,27,38,49,59,71,62,74,65,77,68,1,12,25,36,28]
+        envs.envs[0].step(t)
         jobs = envs.envs[0].vsp_jobs
         tour = envs.envs[0].vsp_tours
         print(tour)
         timetables = reader.create_timetable_from_file(test_instance_path)
         connections = reader.convert_connections_to_df(timetables)
         reader.check_solution_consistency(tour, jobs, connections, timetables, 1, 0)
-        stop = timeit.default_timer()
-        time = (stop - start) / 60
+        """
 
-        print("=================>>>>>>>> improvement: {}% mean cost: {} minutes: {}".format(round((1-(mean/before_mean_cost))*100,2),mean, time))
+        time = (timeit.default_timer() - start) / 60
+        print("> improvement: {}% mean cost: {} minutes: {}".format(round((1-(mean/before_mean_cost))*100,2),mean, time))
         cost = np.mean([env.cost for env in envs.envs])
 
         log.append([[epoch,before_cost, cost]])
 
+        print('-----------------------------------------------------------------------------------')
         if epoch % 10 == 0:
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
 
         if epoch % 100 == 0:
             torch.save(model.state_dict(), parentdir + '/' + "model/vsp_operative_cost_model_epoch_%s.model" % epoch)
 
-    torch.save(model.state_dict(), parentdir + '/' + "model/vsp_operative_cost_final_model_{}epochs.model".format(epochs))
-
-
     log_path = parentdir + '/' + 'log_prod.csv'
     for l in log:
-
         with open(log_path, 'a') as f:
             writer = csv.writer(f)
             writer.writerow(l)

@@ -42,6 +42,7 @@ if __name__ == "__main__":
 
 
     def eval(batch_size, n_steps=100, instance=None):
+        print('WARNING: Randomizer musst be turned off when loading instances from files while evaluation')
         envs = create_batch_env(batch_size, N_JOBS, instance=instance) #Hier muss ich meine Environments laden
         states = envs.reset()
         states, history, actions, values = roll_out(model,envs,states,n_steps,False,64)

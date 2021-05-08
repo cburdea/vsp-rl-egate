@@ -6,6 +6,7 @@ import os, sys
 from tabulate import tabulate
 from datetime import datetime
 import pickle
+import random
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
 currentdir = os.path.dirname(os.path.realpath(__file__))
@@ -17,6 +18,8 @@ args = args()
 
 N_STEPS = int(args.N_STEPS)
 N_JOBS = int(args.N_JOBS)
+
+randomize = True
 
 def create_timetable_from_file(path):
     print('Reading timetables...')
@@ -131,7 +134,6 @@ def convert_timetable_to_df(timetable):
 
 def convert_connections_to_df(timetable):
     timetable = timetable[7]
-    #print(timetable)
 
     timetable = np.asarray(timetable)
     timetable = np.transpose(timetable)
@@ -207,29 +209,28 @@ def create_vsp_env_from_file(path, start_depot=-1):
         print("Depot ID: ", depot_id)
     else:
         depot_id = start_depot
-    km_cost = int(timetable[2][1][4])
-    km_cost = 0
-    meter_cost = km_cost / 1000
 
+    vehicle_cost = int(timetable[2][1][3])
+    km_cost = int(timetable[2][1][4])
     hour_cost = int(timetable[2][1][5])
-    hour_cost = 60
-    minute_cost = hour_cost/60
 
     service_trips = convert_timetable_to_df(timetable)
-    #print(service_trips.to_string())
 
-    # service_trips = service_trips[:10]
     if len(service_trips.index)>N_JOBS:
         print("Downsizing input problem to N_STEPS: ", N_JOBS)
         service_trips = service_trips.sample(n = 100)
-    #print(service_trips)
-    connections = convert_connections_to_df(timetable)
-    #print(connections.head())
+        connections = convert_connections_to_df(timetable)
+
+    if randomize:
+        deviation = random.uniform(0.7, 1.3)
+        connections["Distance"] = connections["Distance"].apply(lambda x: int(x * deviation))
+        connections["RunTime"] = connections["RunTime"].apply(lambda x: int(x * deviation))
+        km_cost = random.randint(80, 200)
+        hour_cost = random.randint(35, 120)
+
     service_trips['service_id'] = service_trips.index.values
 
     # Initialize jobs
-    # TODO: implement line. Check whether name or loc can be used for this
-    # TODO: Check, what impact the time windows have on the calculation. Is it possible to just use the edges?
     jobs = []
     loc_counter = 1
     for index, row in service_trips.iterrows():
@@ -248,7 +249,6 @@ def create_vsp_env_from_file(path, start_depot=-1):
         "job_type": "Pickup",
         })
         loc_counter += 1
-    #print(tabulate(jobs))
 
     # Add depot
     service_trips_depot = service_trips[1:2].copy()
@@ -261,7 +261,6 @@ def create_vsp_env_from_file(path, start_depot=-1):
     service_trips_depot = service_trips_depot.append(service_trips)
 
     # Initialize dist_time
-    # TODO: Check, if it is possible to leave out edges
     amount_nodes = len(jobs)
     dist_time = []
     for index_i, row_i in service_trips_depot.iterrows():
@@ -282,14 +281,10 @@ def create_vsp_env_from_file(path, start_depot=-1):
     adjs = []
 
     for i, job in enumerate(jobs):
-        #l = [(_job['id'], dist_time[job['loc']][_job['loc']]['dist']) for j, _job in enumerate(jobs)]
-        #print(l)
         l = [(j, dist_time[job['loc']][_job['loc']]['dist']) for j, _job in enumerate(jobs)]
-       # print(l)
         l = sorted(l, key=lambda x: x[1])
         l = [x[0] for x in l]
         adjs.append(l)
-
 
     init_T = float(args.init_T)
     final_T = float(args.final_T)
@@ -303,9 +298,9 @@ def create_vsp_env_from_file(path, start_depot=-1):
         },
         "start_loc": 0,
         "end_loc": 0,
-        "fee_per_dist": meter_cost,
-        "fee_per_time": minute_cost,
-        "fixed_cost": 0,
+        "fee_per_dist": km_cost / 1000,
+        "fee_per_time": hour_cost / 60,
+        "fixed_cost": vehicle_cost,
         "handling_cost_per_weight": 0.0,
         "max_stops": 0,
         "max_dist": 0,
@@ -317,8 +312,8 @@ def create_vsp_env_from_file(path, start_depot=-1):
         "cost_per_absent": 99999999999999,
         "jobs": jobs,
         "depot": [0,0],
-        "l_max": 100,
-        "c1": 100,
+        "l_max": 0,
+        "c1": 0,
         "adjs": adjs,
         "temperature": 100,
         "c2": alpha_T,
@@ -553,39 +548,50 @@ def load_vsp_envs_from_pickle(path):
 
 
 def save_plan_as_pickle(path):
-
         plan = create_vsp_env_from_file(path)
         with open(parentdir + '/' + "vsp_data_100/dummy_envs/test_vsp_instance.pkl", 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
 
 
-def multiply_instances_to_pickle(path, multiply_factor = 7, amount_nodes = "100"):
-    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_" + amount_nodes + "/timetables>100_v4") if x[-4:] == ".txt"]
+def multiply_instances_to_pickle( amount_nodes = "100", depot_numbers = 6, multiply_factor = 7):
+    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_100/timetables/" + amount_nodes) if x[-4:] == ".txt"]
 
     counter = 0
 
     for i, path in enumerate(all_paths):
         print("instance: ", i)
-        for depot_nr in range(0,multiply_factor):
-            for dep_instance in range(0,5):
+        for depot_nr in range(0,depot_numbers):
+            for dep_instance in range(0,multiply_factor + 1):
                 print(i,depot_nr, dep_instance)
-                plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_' + amount_nodes + '/timetables>100_v4/' + path, depot_nr)
-                with open(parentdir + '/' + "vsp_data_100/pickle_train_data/vsp_instance_nr" + str(counter) +'_depot'+ str(depot_nr) +'_v04.pkl', 'wb') as output:
+                plan = create_vsp_env_from_file(parentdir + '/' + "vsp_data_100/timetables/" + amount_nodes + '/' + path, depot_nr)
+                with open(parentdir + '/' + "vsp_data_100/pickle_train_data/org"+ amount_nodes + "_vsp_instance_nr" + str(counter) +'_depot'+ str(depot_nr) +'.pkl', 'wb') as output:
                     pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
                 counter += 1
-                print(counter)
+                print("environments created: ", counter)
 
 
 if __name__ == "__main__":
-    #save_plan_as_pickle("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
-    #multiply_instances_to_pickle("100")
+    #save_plan_as_pickle("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/200/huis_200_2_1_A01.txt")
 
-    timetable = create_timetable_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
+    from multiprocessing.dummy import Pool as ThreadPool
+    pool = ThreadPool(4)
+
+    parameter = ("800", 8, 15, "640", 8, 15, "400", 6, 10,"400", 5, 10)
+
+    #multiply_instances_to_pickle("800", depot_numbers=8, multiply_factor=20)
+    #multiply_instances_to_pickle("640", depot_numbers=8, multiply_factor=20)
+    #multiply_instances_to_pickle("400", depot_numbers=6, multiply_factor=10)
+    #multiply_instances_to_pickle("320", depot_numbers=5, multiply_factor=10)
+
+    results = pool.map(multiply_instances_to_pickle, parameter)
+
+    #timetable = create_timetable_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
     #for elem in timetable:
     #    print(tabulate(elem))
-    create_vsp_env_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
+    #create_vsp_env_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
 
 
+    '''
     blocks, blockelements = read_optimal_solution("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/solved_schedules/huis_100_2_1_A01_e_M.txt")
     connections = convert_connections_to_df(timetable)
 
@@ -593,3 +599,4 @@ if __name__ == "__main__":
     #print(tabulate(blockelements))
 
     print(calculate_costs_from_solution(blocks, blockelements, timetable))
+    '''
