@@ -10,6 +10,7 @@ import torch
 from torch_geometric.data import Data, DataLoader
 from lib.rms import RunningMeanStd
 from arguments import args
+from tabulate import tabulate
 import lib.input_reader as reader
 import csv
 import timeit
@@ -27,6 +28,7 @@ init_T = float(args.init_T)
 final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
 eval_mode = str(args.EVAL_MODE)
+RANDOMIZE = str(args.RANDOMIZE)
 
 if eval_mode == "operational":
     import vsp_custom_env as vsp_env
@@ -35,6 +37,7 @@ else:
 
 reward_norm = RunningMeanStd()
 vsp_envs = None
+
 
 
 def initialize_vsp_envs(path):
@@ -56,6 +59,16 @@ def create_env(n_jobs, _input=None, epoch = 0):
                     _input['vehicles'][0]['fixed_costs'] = 0
                 else:
                     _input['vehicles'][0]['fee_per_time'] = 0
+
+            if RANDOMIZE:
+                shift = random.randint(-300,+300)
+                for i, job in enumerate(_input['jobs']):
+                    new_tw = _input["jobs"][i]["tw"]["start"] + shift
+                    _input["jobs"][i]["tw"]["start"] = new_tw
+                    _input["jobs"][i]["tw"]["end"] = new_tw
+                    if new_tw < 0:
+                        _input["jobs"][i]["tw"]["start"] = 0
+                        _input["jobs"][i]["tw"]["end"] = 0
 
                 #_input, raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
 
@@ -387,12 +400,13 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
 
-        envs.reset()
-        before_mean_cost = np.mean([env.cost for env in envs.envs])
 
-        pre_steps = random.randint(0,101)
+
+        #pre_steps = random.randint(0,101)
+        pre_steps = 100
         states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
-
+        #envs.reset()
+        before_mean_cost = np.mean([env.cost for env in envs.envs])
 
         print('\n-----------------------------------------------------------------------------------------------------')
         print("> before mean cost:", before_mean_cost)

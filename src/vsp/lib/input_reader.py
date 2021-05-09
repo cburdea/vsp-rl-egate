@@ -7,6 +7,8 @@ from tabulate import tabulate
 from datetime import datetime
 import pickle
 import random
+import re
+
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 10000)
 currentdir = os.path.dirname(os.path.realpath(__file__))
@@ -18,8 +20,8 @@ args = args()
 
 N_STEPS = int(args.N_STEPS)
 N_JOBS = int(args.N_JOBS)
+RANDOMIZE = str(args.RANDOMIZE)
 
-randomize = True
 
 def create_timetable_from_file(path):
     print('Reading timetables...')
@@ -206,7 +208,6 @@ def create_vsp_env_from_file(path, start_depot=-1):
 
     if start_depot == -1:
         depot_id = int(timetable[5][1][1])
-        print("Depot ID: ", depot_id)
     else:
         depot_id = start_depot
 
@@ -215,13 +216,13 @@ def create_vsp_env_from_file(path, start_depot=-1):
     hour_cost = int(timetable[2][1][5])
 
     service_trips = convert_timetable_to_df(timetable)
+    connections = convert_connections_to_df(timetable)
 
     if len(service_trips.index)>N_JOBS:
         print("Downsizing input problem to N_STEPS: ", N_JOBS)
         service_trips = service_trips.sample(n = 100)
-        connections = convert_connections_to_df(timetable)
 
-    if randomize:
+    if RANDOMIZE:
         deviation = random.uniform(0.7, 1.3)
         connections["Distance"] = connections["Distance"].apply(lambda x: int(x * deviation))
         connections["RunTime"] = connections["RunTime"].apply(lambda x: int(x * deviation))
@@ -536,9 +537,22 @@ def check_solution_consistency(tour_loc, jobs, connections, timetable, depot_id,
     print('#######################################')
 
 
+def atoi(text):
+    return int(text) if text.isdigit() else text
+
+def natural_keys(text):
+    '''
+    alist.sort(key=natural_keys) sorts in human order
+    http://nedbatchelder.com/blog/200712/human_sorting.html
+    (See Toothy's implementation in the comments)
+    '''
+    return [ atoi(c) for c in re.split(r'(\d+)', text) ]
+
+
 def load_vsp_envs_from_pickle(path):
     envs = []
     all_paths = [x for x in os.listdir(parentdir + '/' +path) if x[-4:] == ".pkl"]
+    all_paths.sort(key=natural_keys)
 
     for object_path in all_paths:
         with open(parentdir + '/' + path + "/" +object_path, 'rb') as handle:
@@ -551,6 +565,16 @@ def save_plan_as_pickle(path):
         plan = create_vsp_env_from_file(path)
         with open(parentdir + '/' + "vsp_data_100/dummy_envs/test_vsp_instance.pkl", 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
+
+def save_plans_directory_as_pickle():
+    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_100/evaluation_timetables/vehicle") if x[-4:] == ".txt"]
+
+    for i, path in enumerate(all_paths):
+        print('\n' + path)
+        plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_100/evaluation_timetables/vehicle/' + path)
+        with open(parentdir + '/' + "vsp_data_100/pickle_test_data/vehicle/" + path[:-4]+ '.pkl', 'wb') as output:
+            pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
+
 
 
 def multiply_instances_to_pickle( amount_nodes = "100", depot_numbers = 6, multiply_factor = 7):
@@ -571,12 +595,15 @@ def multiply_instances_to_pickle( amount_nodes = "100", depot_numbers = 6, multi
 
 
 if __name__ == "__main__":
+    save_plans_directory_as_pickle()
+    #print(load_vsp_envs_from_pickle("vsp_data_100/dummy_envs")[0])
+
     #save_plan_as_pickle("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/200/huis_200_2_1_A01.txt")
 
-    from multiprocessing.dummy import Pool as ThreadPool
-    pool = ThreadPool(4)
-
-    parameter = ("800", 8, 15, "640", 8, 15, "400", 6, 10,"400", 5, 10)
+    #from multiprocessing.dummy import Pool as ThreadPool
+ #   pool = ThreadPool(4)
+#
+  #  parameter = ("800", 8, 15, "640", 8, 15, "400", 6, 10,"400", 5, 10)
 
     #multiply_instances_to_pickle("800", depot_numbers=8, multiply_factor=20)
     #multiply_instances_to_pickle("640", depot_numbers=8, multiply_factor=20)

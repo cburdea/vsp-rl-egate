@@ -21,7 +21,7 @@ $LINE:ID;Code;Name
 * Fahrzeugtypen
 *
 $VEHICLETYPE:ID;Code;Name;VehCost;KmCost;HourCost;Capacity
-1;1;1;1000;120;60;1000
+1;1;1;0;120;60;1000
 *
 * FahrzeugtypGruppen
 *

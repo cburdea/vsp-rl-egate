@@ -1,11 +1,7 @@
 import numpy as np
 import json
 import random
-import math
-import vrp_env
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch_geometric.data import Data,DataLoader
 from lib.rms import RunningMeanStd
 from arguments import args
@@ -13,15 +9,10 @@ import argparse
 args = args()
 
 device = torch.device(args.device)
+
 N_JOBS = int(args.N_JOBS)
-CAP = 10000# int(args.CAP)
 batch_size = int(args.BATCH)
-MAX_COORD = 1# int(args.MAX_COORD)
-MAX_DIST = 1000#float(args.MAX_DIST)
 LR = float(args.LR)
-DEPOT_END = 10000000#int(args.DEPOT_END)
-SERVICE_TIME = 1#int(args.SERVICE_TIME)
-TW_WIDTH = 1000#int(args.TW_WIDTH)
 
 N_ROLLOUT = int(args.N_ROLLOUT)
 ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
@@ -29,172 +20,96 @@ N_STEPS = int(args.N_STEPS)
 
 init_T=float(args.init_T)
 final_T=float(args.final_T)
+eval_mode = str(args.EVAL_MODE)
 
 reward_norm = RunningMeanStd()
 
-def read_input(fp):
-    alpha_T = (final_T/init_T)**(1.0/N_STEPS)
-    instance_data = np.load(fp)
-    results = []
-    for instance_index, instance in enumerate(instance_data):
-        node_data = dict()
-        coords = []
-        for node_index, node_detail in enumerate(instance):
-            x = float(node_detail[0])
-            y = float(node_detail[1])
-            demand = float(node_detail[2])
-            ready_time = int(node_detail[3])
-            due_date = int(node_detail[4])
-            service_time = int(node_detail[5])
-            node_data[node_index] = \
-                {"x": x,
-                 "y": y,
-                 "demands": demand,
-                 "start": ready_time,
-                 "end": due_date,
-                 "service_time": service_time}
-            coords.append([x, y, demand])
 
-        raw = np.array(coords)
-        jobs = []
-        for key, value in node_data.items():
-            if key == 0:
-                continue
-            else:
-                node_id = key-1
-                node_loc = key
-                node_name = str(node_id)
-                x = value["x"]
-                y = value["y"]
-                weight = value["demands"]
-                tw = {"start": value["start"], "end": value["end"]}
-                service_time = value["service_time"]
-                job_type = "Pickup"
+if eval_mode == "operational":
+    import vsp_custom_env as vsp_env
+else:
+    import vrp_env as vsp_env
 
-                jobs.append({
-                    "id": node_id,
-                    "loc": node_loc,
-                    "name": node_name,
-                    "x": x,
-                    "y": y,
-                    "weight": weight,
-                    "tw": tw,
-                    "service_time": service_time,
-                    "job_type": job_type,
-                })
-
-        dist_time = []
-
-        def calc_dist(l,r):
-            return ((l[0]-r[0])**2 + (l[1]-r[1])**2)**0.5
-
-        for i,(x1,y1,_) in enumerate(coords):
-            row = []
-            for j,(x2,y2,_) in enumerate(coords):
-                d = calc_dist((x1,y1),(x2,y2))
-                row.append(({"dist":d,"time": d}))
-            dist_time.append(row)
-
-        adjs = []
-
-        for i,job in enumerate(jobs):
-            l = [ (j,dist_time[job['loc']][_job['loc']]['dist']) for j,_job in enumerate(jobs) ]
-            l = sorted(l,key=lambda x: x[1])
-            l = [x[0] for x in l]
-            adjs.append(l)
-
-        v = {
-            "cap": CAP,
-            "tw": {
-                "start": 0,
-                "end": DEPOT_END,
-            },
-            "start_loc": 0,
-            "end_loc": 0,
-            "fee_per_dist": 1.0,
-            "fee_per_time": 0,
-            "fixed_cost": 0,
-            "handling_cost_per_weight": 0.0,
-            "max_stops": 0,
-            "max_dist": 0,
-        }
-
-        input_data = {
-            "vehicles": [v],
-            "dist_time": dist_time,
-            "cost_per_absent": 1000,
-            "jobs": jobs,
-            "depot": coords[0][:2],
-            "l_max": 10,
-            "c1": 10,
-            "adjs": adjs,
-            "temperature": 100,
-            "c2": alpha_T,
-            "sa": True,
-        }
-
-        results.append([input_data, raw])
-    return results
 
 def create_env(n_jobs,_input=None, raw=None):
 
     class Env(object):
         def __init__(self,n_jobs,_input,raw):
             self.n_jobs = n_jobs
+            if _input == None:
+                raw = 0
+                _input['c2'] = (final_T / init_T) ** (1.0 / N_STEPS)
+                _input['temperature'] = init_T
+                if eval_mode == "operational":
+                    _input['vehicles'][0]['fixed_costs'] = 0
+                else:
+                    _input['vehicles'][0]['fee_per_time'] = 0
+
             self.input = _input
             self.raw = raw
             dist_time = _input['dist_time']
-            self.dists = np.array([[ [x['dist']/MAX_DIST] for x in row ] for row in dist_time])
+
+            # self.dists = np.array([[ [x['dist']/MAX_DIST] for x in row ] for row in dist_time]) Original
+            distances_custom = [item['dist'] for sublist in dist_time for item in sublist]
+            self.max_dist_custom = max(distances_custom)
+            self.dists = np.array([[[x['dist'] / self.max_dist_custom] for x in row] for row in dist_time])
 
         def reset(self):
-            self.env = vrp_env.Env(json.dumps(self.input))
+            self.env = vsp_env.Env(json.dumps(self.input))
             self.mapping = {}
             self.cost = 0.0
             self.best = None
             self.best_sol = None
             return self.get_states()
 
+
         def get_states(self):
-# {'id': 1, 'loc': 2, 'name': '1', 'x': 92, 'y': 73, 'weight': 8, 'tw': {'start': 0, 'end': 10000}, 'service_time': 0, 'job_type': 'Pickup'}
-# {'dist': 8.5440034866333, 'time': 8.5440034866333, 'stops': 1, 'time_slack': 9615.2998046875, 'wait_time': 0.0, 'service_time': 0.0, 'loc': 2, 'weight': 8.0}
+            # {'id': 1, 'loc': 2, 'name': '1', 'x': 92, 'y': 73, 'weight': 8, 'tw': {'start': 0, 'end': 10000}, 'service_time': 0, 'job_type': 'Pickup'}
+            # {'dist': 8.5440034866333, 'time': 8.5440034866333, 'stops': 1, 'time_slack': 9615.22138046875, 'wait_time': 0.0, 'service_time': 0.0, 'loc': 2, 'weight': 8.0}
             states = self.env.states()
             tours = self.env.tours()
+            self.vsp_tours = self.env.tours()
             jobs = self.input['jobs']
+            self.vsp_jobs = self.input['jobs']
             depot = self.input['depot']
 
-            nodes = np.zeros((self.n_jobs+1,8))
-            edges = np.zeros((self.n_jobs+1,self.n_jobs+1,1))
+            nodes = np.zeros((self.n_jobs + 1, 8))
+            edges = np.zeros((self.n_jobs + 1, self.n_jobs + 1, 1))
+
             mapping = {}
 
-            for i,(tour,tour_state) in enumerate(zip(tours,states)):
-                for j,(index,s) in enumerate(zip(tour,tour_state[1:])):
+            for i, (tour, tour_state) in enumerate(zip(tours, states)):
+                for j, (index, s) in enumerate(zip(tour, tour_state[1:])):
                     job = jobs[index]
                     loc = job['loc']
-                    nodes[loc,:] = [job['weight']/CAP,s['weight']/CAP,s['dist']/MAX_DIST,
-                                    tour_state[-1]['weight'],job['tw']['start']/MAX_DIST,
-                                    job['tw']['end']/MAX_DIST,s['time']/MAX_DIST,s['time_slack']/MAX_DIST]
-                    mapping[loc] = (i,j)
-#                     s['time']/MAX_DIST
+                    nodes[loc, :] = [job['weight'] / 1, s['weight'] / 1, s['dist'] / self.max_dist_custom,
+                                     s['time'] / self.max_dist_custom, job['tw']['start'] / self.max_dist_custom,
+                                     job['tw']['end'] / self.max_dist_custom, s['time'] / self.max_dist_custom,
+                                     s['time_slack'] / self.max_dist_custom]
+                    mapping[loc] = (i, j)
 
             for tour in tours:
-                edges[0][tour[0]+1][0] = 1
-                for l,r in zip(tour[0:-1],tour[1:]):
-                    edges[l+1][r+1][0] = 1
-                edges[tour[-1]+1][0][0] = 1
+                edges[0][tour[0] + 1][0] = 1
+                for l, r in zip(tour[0:-1], tour[1:]):
+                    edges[l + 1][r + 1][0] = 1
+                edges[tour[-1] + 1][0][0] = 1
 
-            edges = np.stack([self.dists,edges],axis=-1)
-            edges = edges.reshape(-1,2)
+            # print(len(self.dists))
+            # print(len(edges))
+            edges = np.stack([self.dists, edges], axis=-1)
+            edges = edges.reshape(-1, 2)
 
             absents = self.env.absents()
-            assert len(absents) == 0,"bad input"
+            assert len(absents) == 0, "bad input"
 
             self.mapping = mapping
             self.cost = self.env.cost()
             if self.best is None or self.cost < self.best:
                 self.best = self.cost
-                self.best_sol = self.env.tours()
 
-            return nodes,edges
+
+            return nodes, edges
+
 
         def sisr_step(self):
             prev_cost = self.cost
@@ -217,11 +132,8 @@ def create_batch_env(batch_size=batch_size,n_jobs=N_JOBS, instance=None):
 
     class BatchEnv(object):
         def __init__(self,batch_size, instance):
-            if instance is not None:
-                one_instance = create_env(n_jobs, _input=instance[0], raw=instance[1])
-                self.envs = [one_instance for i in range(batch_size)]
-            else:
-                self.envs = [create_env(n_jobs) for i in range(batch_size) ]
+            one_instance = create_env(n_jobs, _input=instance[0], raw=instance[1])
+            self.envs = [one_instance for i in range(batch_size)]
 
         def reset(self):
             rets = [ env.reset() for env in self.envs ]
@@ -323,8 +235,22 @@ def create_replay_buffer(n_jobs=99):
 
     return Buffer()
 
+
+def random_init(envs, n_steps, batch_size, n_jobs):
+
+    n_remove_init = 10
+
+    nodes, edges = envs.reset()
+    for i in range(n_steps):
+        actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(batch_size)]
+        actions = np.array(actions)
+        nodes, edges, rewards = envs.step(actions)
+
+    return (nodes, edges), np.mean([env.cost for env in envs.envs])
+
+
 def roll_out(model,envs,states,n_steps=10,_lambda=0.99,batch_size=batch_size,n_remove=10,is_last=False,greedy=True):
-    buffer = create_replay_buffer()
+    buffer = create_replay_buffer(N_JOBS)
 
     with torch.no_grad():
         model.eval()
@@ -338,7 +264,7 @@ def roll_out(model,envs,states,n_steps=10,_lambda=0.99,batch_size=batch_size,n_r
         for i in range(n_steps):
             data = buffer.create_data(nodes,edges)
             data = data.to(device)
-            actions,log_p,values,entropy = model(data,n_remove,greedy,1)
+            actions,log_p,values,entropy = model(data,n_remove,greedy)
             actions_history.append(list(actions))
             values_history.append(envs.envs[0].env.tours())
             new_nodes,new_edges,rewards = envs.step(actions.cpu().numpy())
