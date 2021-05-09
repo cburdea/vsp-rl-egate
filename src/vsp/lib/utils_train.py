@@ -374,8 +374,8 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    initialize_vsp_envs('vsp_data_100/pickle_train_data')
-    #initialize_vsp_envs('vsp_data_100/dummy_envs')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data')
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
 
     log = [["Epoch", "Before Cost", "After Cost"]]
 
@@ -387,12 +387,14 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
 
-        pre_steps = random.randint(0,101)
-        states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
-        #states = envs.reset()
+        envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
 
-        print('\n---------------------------------------------------------------------------------------------------------------')
+        pre_steps = random.randint(0,101)
+        states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
+
+
+        print('\n-----------------------------------------------------------------------------------------------------')
         print("> before mean cost:", before_mean_cost)
         before_cost = np.mean([env.cost for env in envs.envs])
 
@@ -424,12 +426,11 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         time = (timeit.default_timer() - start) / 60
         print("> improvement: {}% mean cost: {} minutes: {}".format(round((1-(mean/before_mean_cost))*100,2),mean, time))
         cost = np.mean([env.cost for env in envs.envs])
-
         log.append([[epoch,before_cost, cost]])
 
-        print('-----------------------------------------------------------------------------------')
         if epoch % 10 == 0:
             eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
+        print('-----------------------------------------------------------------------------------------------------')
 
         if epoch % 100 == 0:
             torch.save(model.state_dict(), parentdir + '/' + "model/vsp_operative_cost_model_epoch_%s.model" % epoch)

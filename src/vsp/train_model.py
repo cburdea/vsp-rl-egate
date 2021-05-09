@@ -28,6 +28,7 @@ if __name__ == "__main__":
     ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
     N_ROLLOUT = int(args.N_ROLLOUT)
     N_EPOCHS = int(args.N_EPOCHS)
+    EVAL_MODE = (args.EVAL_MODE)
 
     model = Model(input_node_dim=8, hidden_node_dim=64, input_edge_dim=2, hidden_edge_dim=16)
     model.to(device)
@@ -40,11 +41,11 @@ if __name__ == "__main__":
           epochs=N_EPOCHS,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
-          train_steps=4,
+          train_steps=1,
           n_remove=10,)
 
 
-    torch.save(model.state_dict(), "model/dummy.model")
+    torch.save(model.state_dict(), "model/final_model_" + EVAL_MODE+ ".model")
 
 
     gc.collect()

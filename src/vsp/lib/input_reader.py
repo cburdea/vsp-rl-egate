@@ -583,7 +583,7 @@ if __name__ == "__main__":
     #multiply_instances_to_pickle("400", depot_numbers=6, multiply_factor=10)
     #multiply_instances_to_pickle("320", depot_numbers=5, multiply_factor=10)
 
-    results = pool.map(multiply_instances_to_pickle, parameter)
+    #results = pool.map(multiply_instances_to_pickle, parameter)
 
     #timetable = create_timetable_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
     #for elem in timetable:
