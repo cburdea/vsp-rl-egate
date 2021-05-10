@@ -27,23 +27,24 @@ LR = float(args.LR)
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
-eval_mode = str(args.EVAL_MODE)
+EVAL_MODE = str(args.EVAL_MODE)
 RANDOMIZE = str(args.RANDOMIZE)
 
-if eval_mode == "operational":
+if EVAL_MODE == "operational":
     import vsp_custom_env as vsp_env
 else:
     import vrp_env as vsp_env
 
 reward_norm = RunningMeanStd()
-vsp_envs = None
+vsp_envs = []
 
 
 
 def initialize_vsp_envs(path):
     global vsp_envs
-    vsp_envs = reader.load_vsp_envs_from_pickle(path)
-    vsp_envs = [instance[0] for instance in vsp_envs]
+    loaded_vsp_envs = reader.load_vsp_envs_from_pickle(path)
+    for instance in loaded_vsp_envs:
+        vsp_envs.append(instance[0])
 
 
 def create_env(n_jobs, _input=None, epoch = 0):
@@ -55,7 +56,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
                 _input = vsp_envs[random.randint(0, len(vsp_envs) - 1)]
                 _input['c2'] = (final_T / init_T) ** (1.0 / N_STEPS)
                 _input['temperature'] = init_T
-                if eval_mode == "operational":
+                if EVAL_MODE == "operational":
                     _input['vehicles'][0]['fixed_costs'] = 0
                 else:
                     _input['vehicles'][0]['fee_per_time'] = 0
@@ -387,7 +388,11 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
     initialize_vsp_envs('vsp_data_100/dummy_envs')
 
     log = [["Epoch", "Before Cost", "After Cost"]]
@@ -447,9 +452,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         print('-----------------------------------------------------------------------------------------------------')
 
         if epoch % 100 == 0:
-            torch.save(model.state_dict(), parentdir + '/' + "model/vsp_operative_cost_model_epoch_%s.model" % epoch)
+            torch.save(model.state_dict(), parentdir + '/' + "model/vsp_" + EVAL_MODE + "_model_epoch_%s.model" % epoch)
 
-    log_path = parentdir + '/' + 'log_prod.csv'
+    log_path = parentdir + '/' + 'log_prod_' + EVAL_MODE + '.csv'
     for l in log:
         with open(log_path, 'a') as f:
             writer = csv.writer(f)
