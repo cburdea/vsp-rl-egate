@@ -388,12 +388,12 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    # initialize_vsp_envs('vsp_data_100/dummy_envs')
+    # initialize_vsp_envs('vsp_data_100/dummy_envs')
+    # initialize_vsp_envs('vsp_data_100/dummy_envs')
 
     log = [["Epoch", "Before Cost", "After Cost"]]
 
