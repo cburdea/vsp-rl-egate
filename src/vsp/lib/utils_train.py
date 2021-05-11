@@ -408,7 +408,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
 
         #pre_steps = random.randint(0,101)
-        pre_steps = 100
+        pre_steps = 50
         states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
         #envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
