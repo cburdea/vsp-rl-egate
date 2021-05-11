@@ -45,7 +45,7 @@ if __name__ == "__main__":
           n_remove=10,)
 
 
-    torch.save(model.state_dict(), "model/vsp_" + EVAL_MODE+ "_model_final.model")
+    torch.save(model.state_dict(), parentdir + '/' + "model/vsp_" + EVAL_MODE+ "_model_final.model")
 
 
     gc.collect()
