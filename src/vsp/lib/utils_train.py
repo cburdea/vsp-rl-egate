@@ -454,6 +454,8 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         if epoch % 100 == 0:
             torch.save(model.state_dict(), parentdir + '/' + "model/vsp_" + EVAL_MODE + "_model_epoch_%s.model" % epoch)
 
+    torch.save(model.state_dict(), parentdir + '/' + "model/vsp_" + EVAL_MODE + "_model_final.model")
+
     log_path = parentdir + '/' + 'log_prod_' + EVAL_MODE + '.csv'
     for l in log:
         with open(log_path, 'a') as f:
