@@ -61,12 +61,16 @@ def create_env(n_jobs, _input=None, epoch = 0):
                 else:
                     _input['vehicles'][0]['fee_per_time'] = 0
 
+
             if RANDOMIZE:
                 shift = random.randint(-300,+300)
                 for i, job in enumerate(_input['jobs']):
                     new_tw = _input["jobs"][i]["tw"]["start"] + shift
                     _input["jobs"][i]["tw"]["start"] = new_tw
                     _input["jobs"][i]["tw"]["end"] = new_tw
+                    if _input["jobs"][i]["service_time"] < 0:
+                        _input["jobs"][i]["service_time"] = 60
+                        print("WARNING: Invalid negative service time set to 60 minutes")
                     if new_tw < 0:
                         _input["jobs"][i]["tw"]["start"] = 0
                         _input["jobs"][i]["tw"]["end"] = 0
@@ -388,12 +392,12 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    # initialize_vsp_envs('vsp_data_100/dummy_envs')
-    # initialize_vsp_envs('vsp_data_100/dummy_envs')
-    # initialize_vsp_envs('vsp_data_100/dummy_envs')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
+
+
 
     log = [["Epoch", "Before Cost", "After Cost"]]
 
@@ -414,7 +418,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         before_mean_cost = np.mean([env.cost for env in envs.envs])
 
         print('\n-----------------------------------------------------------------------------------------------------')
-        print("> before mean cost:", before_mean_cost)
+        print("> before mean cost " + EVAL_MODE + ": " + str(before_mean_cost))
         before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []

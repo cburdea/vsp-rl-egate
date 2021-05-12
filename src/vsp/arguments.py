@@ -5,7 +5,7 @@ def args():
     parser.add_argument('-n', '--N_JOBS', default=100)
     parser.add_argument('-b', '--BATCH', default=1)
     parser.add_argument('-e', '--N_EPOCHS', default=1)
-    parser.add_argument('--EVAL_MODE', default="vehicle") #alternative is vehicle
+    parser.add_argument('--EVAL_MODE', default="operational") #alternative is vehicle
     parser.add_argument('--RANDOMIZE', default=True)
     parser.add_argument('--LR', default=3e-4)
     parser.add_argument('--N_ROLLOUT', default=20)
