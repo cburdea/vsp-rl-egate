@@ -71,9 +71,10 @@ def create_env(n_jobs, _input=None, epoch = 0):
                     if _input["jobs"][i]["service_time"] < 0:
                         _input["jobs"][i]["service_time"] = 60
                         print("WARNING: Invalid negative service time set to 60 minutes")
-                    if new_tw < 0:
-                        _input["jobs"][i]["tw"]["start"] = 0
-                        _input["jobs"][i]["tw"]["end"] = 0
+                    if new_tw < 100:
+                        new_tw = random.randint(100,1200)
+                        _input["jobs"][i]["tw"]["start"] = new_tw
+                        _input["jobs"][i]["tw"]["end"] = new_tw
 
                 #_input, raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
 
@@ -130,6 +131,12 @@ def create_env(n_jobs, _input=None, epoch = 0):
             edges = edges.reshape(-1, 2)
 
             absents = self.env.absents()
+            if len(absents) != 0:
+                print(self.vsp_tours)
+                for elem in self.vsp_jobs:
+                    print(elem)
+                print(tabulate(self.vsp_jobs))
+                print(self.vsp_tours)
             assert len(absents) == 0, "bad input"
 
             self.mapping = mapping
