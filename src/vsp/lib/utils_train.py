@@ -60,6 +60,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
                     _input['vehicles'][0]['fixed_costs'] = 0
                 else:
                     _input['vehicles'][0]['fee_per_time'] = 0
+                _input['vehicles'][0]['tw']['end'] = 4000
 
 
             if RANDOMIZE:
@@ -71,8 +72,8 @@ def create_env(n_jobs, _input=None, epoch = 0):
                     if _input["jobs"][i]["service_time"] < 0:
                         _input["jobs"][i]["service_time"] = 60
                         print("WARNING: Invalid negative service time set to 60 minutes")
-                    if new_tw < 100:
-                        new_tw = random.randint(100,1200)
+                    if new_tw < 250 or new_tw > 1800:
+                        new_tw = random.randint(250,1800)
                         _input["jobs"][i]["tw"]["start"] = new_tw
                         _input["jobs"][i]["tw"]["end"] = new_tw
 
@@ -399,10 +400,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    #initialize_vsp_envs('vsp_data_100/dummy_envs')
 
 
 
@@ -419,7 +420,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
 
         #pre_steps = random.randint(0,101)
-        pre_steps = 100
+        pre_steps = 50
         states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
         #envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
