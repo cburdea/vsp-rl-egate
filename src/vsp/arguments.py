@@ -10,7 +10,7 @@ def args():
     parser.add_argument('--LR', default=3e-4)
     parser.add_argument('--N_ROLLOUT', default=20)
     parser.add_argument('--ROLLOUT_STEPS', default=10)
-    parser.add_argument('--N_STEPS', default=100)
+    parser.add_argument('--N_STEPS', default=20)
     parser.add_argument('--init_T', default=100.0)
     parser.add_argument('--final_T', default=1.0)
     parser.add_argument('--device', default="cpu")

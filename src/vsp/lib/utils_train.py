@@ -63,8 +63,10 @@ def create_env(n_jobs, _input=None, epoch = 0):
                 _input['vehicles'][0]['tw']['end'] = 4000
 
 
+
             if RANDOMIZE:
-                shift = random.randint(-300,+300)
+                #shift = random.randint(-5,+5)
+                shift = 0
                 for i, job in enumerate(_input['jobs']):
                     new_tw = _input["jobs"][i]["tw"]["start"] + shift
                     _input["jobs"][i]["tw"]["start"] = new_tw
