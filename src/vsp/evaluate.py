@@ -27,7 +27,7 @@ if __name__ == "__main__":
     model = Model(input_node_dim=8, hidden_node_dim=64, input_edge_dim=2, hidden_edge_dim=16)
     model = model.to(device)
     #model.load_state_dict(torch.load("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/model/final_model_operational.model"))
-    model.load_state_dict(torch.load("/home/cb/PycharmProjects/run2/vsp-rl-egate/src/vsp/model/vsp_vehicle_model_final.model", map_location=device))
+    model.load_state_dict(torch.load("/home/cb/PycharmProjects/run3/vsp-rl-egate/src/vsp/model/vsp_vehicle_model_final.model", map_location=device))
 
     inputs = input_reader.load_vsp_envs_from_pickle("vsp_data_100/pickle_test_data/" + eval_mode)
 

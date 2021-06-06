@@ -42,7 +42,7 @@ if __name__ == "__main__":
           epochs=N_EPOCHS,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
-          train_steps=6,
+          train_steps=5,
           n_remove=10)
 
 

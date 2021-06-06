@@ -29,6 +29,7 @@ final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
 EVAL_MODE = str(args.EVAL_MODE)
 RANDOMIZE = str(args.RANDOMIZE)
+n_instances = 128
 
 if EVAL_MODE == "operational":
     import vsp_custom_env as vsp_env
@@ -283,7 +284,7 @@ def create_replay_buffer(n_jobs):
     return Buffer()
 
 
-def roll_out(model, envs, states, n_jobs, batch_size, rollout_steps=10, _lambda=0.99, n_remove=10, is_last=False, greedy=False):
+def roll_out(model, envs, states, n_jobs, rollout_steps=10, _lambda=0.99, n_remove=10, is_last=False, greedy=False):
     buffer = create_replay_buffer(n_jobs)
     with torch.no_grad():
         model.eval()
@@ -294,7 +295,7 @@ def roll_out(model, envs, states, n_jobs, batch_size, rollout_steps=10, _lambda=
         for i in range(rollout_steps):
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
-            actions, log_p, values, entropy = model(data, n_remove, greedy, batch_size)
+            actions, log_p, values, entropy = model(data, n_remove, greedy, 128)
             #             print (actions)
             new_nodes, new_edges, rewards = envs.step(actions.cpu().numpy())
             rewards = np.array(rewards)
@@ -383,13 +384,13 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
     print(">>random mean cost:", np.mean([eval_once(i, ) for i in range(epochs)]))
 
 
-def random_init(envs, n_steps, batch_size, n_jobs):
+def random_init(envs, n_steps, n_jobs):
 
     n_remove_init = 10
 
     nodes, edges = envs.reset()
     for i in range(n_steps):
-        actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(batch_size)]
+        actions = [random.sample(range(0, n_jobs), n_remove_init) for i in range(n_instances)]
         actions = np.array(actions)
         nodes, edges, rewards = envs.step(actions)
 
@@ -400,10 +401,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    #initialize_vsp_envs('vsp_data_100/dummy_envs')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
 
 
 
@@ -415,10 +416,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         start = timeit.default_timer()
         gc.collect()
 
-        envs = create_batch_env(128, N_JOBS, epoch=epoch)
+        envs = create_batch_env(n_instances, N_JOBS, epoch=epoch)
 
         pre_steps = 100
-        states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
+        states, mean_cost = random_init(envs, pre_steps, N_JOBS)
         #envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
 
@@ -428,7 +429,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         all_datas = []
         for i in range(n_rollout):
-            datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, batch_size=BATCH_SIZE, n_remove=n_remove, is_last=False)
+            datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
             all_datas.extend(datas)
 
         gc.collect()
@@ -446,7 +447,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         log.append([[epoch,before_cost, cost]])
 
         if epoch % 10 == 0:
-            eval_random(3, envs, n_rollout * rollout_steps + pre_steps, BATCH_SIZE, N_JOBS)
+            eval_random(3, envs, n_rollout * rollout_steps + pre_steps, n_instances, N_JOBS)
         print('-----------------------------------------------------------------------------------------------------')
 
         if epoch % 100 == 0:
