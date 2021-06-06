@@ -329,8 +329,6 @@ def roll_out(model, envs, states, n_jobs, batch_size, rollout_steps=10, _lambda=
 def train_once(model, opt, dl, epoch, step, alpha=1.0):
     model.train()
 
-    gc.collect()
-
     losses = []
     loss_vs = []
     loss_ps = []
@@ -417,12 +415,9 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         start = timeit.default_timer()
         gc.collect()
 
-        envs = create_batch_env(BATCH_SIZE, N_JOBS, epoch=epoch)
+        envs = create_batch_env(128, N_JOBS, epoch=epoch)
 
-
-
-        #pre_steps = random.randint(0,101)
-        pre_steps = 50
+        pre_steps = 100
         states, mean_cost = random_init(envs, pre_steps, BATCH_SIZE, N_JOBS)
         #envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
@@ -444,17 +439,6 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
             train_once(model, opt, dl, epoch, 0)
 
         mean = np.mean([env.cost for env in envs.envs])
-
-        """
-        t = [91,81,93,83,95,85,97,87,99,39,50,2,13,4,15,7,18,60,72,63,75,66,78,19,80,92,82,94,84,96,86,98,88,40,51,43,54,45,56,47,58,10,41,52,5,16,8,0,11,3,14,6,17,9,20,31,42,53,44,55,46,57,48,70,61,73,64,76,67,79,69,21,32,23,34,26,37,29,89,90,30,22,33,24,35,27,38,49,59,71,62,74,65,77,68,1,12,25,36,28]
-        envs.envs[0].step(t)
-        jobs = envs.envs[0].vsp_jobs
-        tour = envs.envs[0].vsp_tours
-        print(tour)
-        timetables = reader.create_timetable_from_file(test_instance_path)
-        connections = reader.convert_connections_to_df(timetables)
-        reader.check_solution_consistency(tour, jobs, connections, timetables, 1, 0)
-        """
 
         time = (timeit.default_timer() - start) / 60
         print("> improvement: {}% mean cost: {} minutes: {}".format(round((1-(mean/before_mean_cost))*100,2),mean, time))
