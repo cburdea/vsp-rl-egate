@@ -30,7 +30,6 @@ N_STEPS = float(args.N_STEPS)
 EVAL_MODE = str(args.EVAL_MODE)
 RANDOMIZE = str(args.RANDOMIZE)
 n_instances = 128
-
 if EVAL_MODE == "operational":
     import vsp_custom_env as vsp_env
 else:
