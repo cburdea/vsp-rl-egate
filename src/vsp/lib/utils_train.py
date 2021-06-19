@@ -29,7 +29,10 @@ final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
 EVAL_MODE = str(args.EVAL_MODE)
 RANDOMIZE = str(args.RANDOMIZE)
-n_instances = 128
+PRE_STEPS = int(args.PRE_STEPS)
+ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
+n_instances = 1
+
 if EVAL_MODE == "operational":
     import vsp_custom_env as vsp_env
 else:
@@ -54,12 +57,16 @@ def create_env(n_jobs, _input=None, epoch = 0):
             if _input == None:
                 raw = 0
                 _input = vsp_envs[random.randint(0, len(vsp_envs) - 1)]
-                _input['c2'] = (final_T / init_T) ** (1.0 / N_STEPS)
+                _input['c2'] = (final_T / init_T) ** (1.0 / ROLLOUT_STEPS)
                 _input['temperature'] = init_T
                 if EVAL_MODE == "operational":
-                    _input['vehicles'][0]['fixed_costs'] = 0
+                    _input['vehicles'][0]['fee_per_dist'] = 120
+                    _input['vehicles'][0]['fee_per_time'] = 60
+                    _input['vehicles'][0]['fixed_cost'] = 0
                 else:
+                    _input['vehicles'][0]['fee_per_dist'] = 120
                     _input['vehicles'][0]['fee_per_time'] = 0
+                    _input['vehicles'][0]['fixed_cost'] = 1000
                 _input['vehicles'][0]['tw']['end'] = 4000
 
 
@@ -88,6 +95,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
             # self.dists = np.array([[ [x['dist']/MAX_DIST] for x in row ] for row in dist_time]) Original
             distances_custom = [item['dist'] for sublist in dist_time for item in sublist]
             self.max_dist_custom = max(distances_custom)
+            self.max_travel_time_custom = 0
             self.dists = np.array([[[x['dist'] / self.max_dist_custom] for x in row] for row in dist_time])
 
         def reset(self):
@@ -107,19 +115,44 @@ def create_env(n_jobs, _input=None, epoch = 0):
             self.vsp_jobs = self.input['jobs']
             depot = self.input['depot']
 
-            nodes = np.zeros((self.n_jobs + 1, 8))
+            nodes = np.zeros((self.n_jobs + 1, 4))
             edges = np.zeros((self.n_jobs + 1, self.n_jobs + 1, 1))
 
             mapping = {}
 
+            print(tabulate(self.input['jobs']))
+
             for i, (tour, tour_state) in enumerate(zip(tours, states)):
+                print("x x x x x x x x x x x x x x x x x x x x x x x x x")
                 for j, (index, s) in enumerate(zip(tour, tour_state[1:])):
                     job = jobs[index]
                     loc = job['loc']
+                    '''
                     nodes[loc, :] = [job['weight'] / 1, s['weight'] / 1, s['dist'] / self.max_dist_custom,
                                      s['time'] / self.max_dist_custom, job['tw']['start'] / self.max_dist_custom,
                                      job['tw']['end'] / self.max_dist_custom, s['time'] / self.max_dist_custom,
                                      s['time_slack'] / self.max_dist_custom]
+                    '''
+                    '''
+                    nodes[loc, :] = [s['dist'] / self.max_dist_custom,
+                                     s['time'] / self.max_dist_custom,
+                                     job['tw']['start'] / self.max_dist_custom,
+                                     s['time'] / self.max_travel_time_custom]
+                    '''
+                    embedding_information = [#job['weight'],
+                                             #s['weight'],
+                                             job['tw']['start'], #service start
+                                             job['tw']['start'] + job['service_time'], #service end
+                                             s['dist'],  # Length until current solution
+                                             s['time'],  # time passed for driving and waiting
+                                             #job['tw']['end'],
+                                             #s['time'],
+                                             #s['time_slack']
+                                            ]
+                    nodes[loc, :] = embedding_information
+
+                    print(embedding_information)
+
                     mapping[loc] = (i, j)
 
             for tour in tours:
@@ -417,9 +450,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         envs = create_batch_env(n_instances, N_JOBS, epoch=epoch)
 
-        pre_steps = 100
-        states, mean_cost = random_init(envs, pre_steps, N_JOBS)
-        #envs.reset()
+        if PRE_STEPS > 0:
+            states, mean_cost = random_init(envs, PRE_STEPS, N_JOBS)
+        else:
+            states = envs.reset()
         before_mean_cost = np.mean([env.cost for env in envs.envs])
 
         print('\n-----------------------------------------------------------------------------------------------------')
@@ -446,7 +480,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         log.append([[epoch,before_cost, cost]])
 
         if epoch % 10 == 0:
-            eval_random(3, envs, n_rollout * rollout_steps + pre_steps, n_instances, N_JOBS)
+            eval_random(3, envs, n_rollout * rollout_steps + PRE_STEPS, n_instances, N_JOBS)
         print('-----------------------------------------------------------------------------------------------------')
 
         if epoch % 100 == 0:
