@@ -31,6 +31,10 @@ EVAL_MODE = str(args.EVAL_MODE)
 RANDOMIZE = str(args.RANDOMIZE)
 PRE_STEPS = int(args.PRE_STEPS)
 ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
+
+
+MAX_DIST = 100000000 # Scale for normalizing
+MAX_TIME = 2280 # Scale for normalizing
 n_instances = 1
 
 if EVAL_MODE == "operational":
@@ -42,6 +46,10 @@ reward_norm = RunningMeanStd()
 vsp_envs = []
 
 
+def read_vsp_env(path):
+    global vsp_envs
+    vsp_envs.append(reader.create_vsp_env_from_file(path)[0])
+    print(vsp_envs)
 
 def initialize_vsp_envs(path):
     global vsp_envs
@@ -86,17 +94,12 @@ def create_env(n_jobs, _input=None, epoch = 0):
                         _input["jobs"][i]["tw"]["start"] = new_tw
                         _input["jobs"][i]["tw"]["end"] = new_tw
 
-                #_input, raw = reader.create_vsp_env_from_file("vsp_data/Fahrplan_213_1_1_L.txt")
-
             self.input = _input
             self.raw = raw
             dist_time = _input['dist_time']
 
-            # self.dists = np.array([[ [x['dist']/MAX_DIST] for x in row ] for row in dist_time]) Original
-            distances_custom = [item['dist'] for sublist in dist_time for item in sublist]
-            self.max_dist_custom = max(distances_custom)
-            self.max_travel_time_custom = 0
-            self.dists = np.array([[[x['dist'] / self.max_dist_custom] for x in row] for row in dist_time])
+            self.dists = np.array([[[x['dist'] / MAX_DIST] for x in row] for row in dist_time])
+            self.times = np.array([[[x['time'] / MAX_TIME] for x in row] for row in dist_time])
 
         def reset(self):
             self.env = vsp_env.Env(json.dumps(self.input))
@@ -120,38 +123,72 @@ def create_env(n_jobs, _input=None, epoch = 0):
 
             mapping = {}
 
-            print(tabulate(self.input['jobs']))
+            # Embedding
+            time_until_job = 0
 
             for i, (tour, tour_state) in enumerate(zip(tours, states)):
                 print("x x x x x x x x x x x x x x x x x x x x x x x x x")
-                for j, (index, s) in enumerate(zip(tour, tour_state[1:])):
+                service_trips_tour = list(zip(tour, tour_state[1:]))
+                for j, (index, s) in enumerate(service_trips_tour):
                     job = jobs[index]
+                    solution_job = service_trips_tour[j]
+                    job_before = None
+                    solution_job_before = None
+                    job_after = None
+                    solution_job_after = None
+
+                    service_start_time = job['tw']['start']
+                    service_end_time = job['tw']['start'] + job['service_time']
+
+                    dist_until_job = s['dist'],
+                    dist_until_job = dist_until_job[0]
+
+                    if j == 0:
+                        #job_after = jobs[service_trips_tour[j + 1][0]]
+                        #solution_job_after = service_trips_tour[j + 1]
+                        time_until_job += job["tw"]["start"] - solution_job[1]["wait_time"]
+
+                    elif j == len(service_trips_tour)-1:
+                        job_before = jobs[service_trips_tour[j - 1][0]]
+                        #solution_job_before = service_trips_tour[j - 1]
+                        time_until_job += job["tw"]["start"] - job_before["tw"]["start"] + job_before["service_time"]
+
+                    else:
+                        job_before = jobs[service_trips_tour[j - 1][0]]
+                        #job_after = jobs[service_trips_tour[j + 1][0]]
+                        #solution_job_before = service_trips_tour[j - 1]
+                        #solution_job_after = service_trips_tour[j + 1]
+                        time_until_job += job["tw"]["start"] - job_before["tw"]["start"] + job_before["service_time"]
+
                     loc = job['loc']
-                    '''
-                    nodes[loc, :] = [job['weight'] / 1, s['weight'] / 1, s['dist'] / self.max_dist_custom,
-                                     s['time'] / self.max_dist_custom, job['tw']['start'] / self.max_dist_custom,
-                                     job['tw']['end'] / self.max_dist_custom, s['time'] / self.max_dist_custom,
-                                     s['time_slack'] / self.max_dist_custom]
-                    '''
-                    '''
-                    nodes[loc, :] = [s['dist'] / self.max_dist_custom,
-                                     s['time'] / self.max_dist_custom,
-                                     job['tw']['start'] / self.max_dist_custom,
-                                     s['time'] / self.max_travel_time_custom]
-                    '''
-                    embedding_information = [#job['weight'],
-                                             #s['weight'],
-                                             job['tw']['start'], #service start
-                                             job['tw']['start'] + job['service_time'], #service end
-                                             s['dist'],  # Length until current solution
-                                             s['time'],  # time passed for driving and waiting
-                                             #job['tw']['end'],
-                                             #s['time'],
-                                             #s['time_slack']
+
+
+                    embedding_information = [
+                                             service_start_time / MAX_TIME,
+                                             service_end_time / MAX_TIME,
+                                             time_until_job / MAX_TIME,
+                                             dist_until_job / MAX_DIST,
                                             ]
+                    '''
+                    print("before: ",  solution_job_before)
+                    print("current: ", solution_job)
+                    print("after: ", solution_job_after)
+                    print()
+                    print("before: ", job_before)
+                    print("current: ", job)
+                    print("after: ", job_after)
+                    print()
+                       
+                    print(tabulate([[
+                                     "service_start_time",
+                                     "service_end_time",
+                                     "time_until_job",
+                                     "dist_until_job",
+                                    ],embedding_information]))
+                    print("\n")
+                    '''
                     nodes[loc, :] = embedding_information
 
-                    print(embedding_information)
 
                     mapping[loc] = (i, j)
 
@@ -163,8 +200,8 @@ def create_env(n_jobs, _input=None, epoch = 0):
 
             # print(len(self.dists))
             # print(len(edges))
-            edges = np.stack([self.dists, edges], axis=-1)
-            edges = edges.reshape(-1, 2)
+            edges = np.stack([self.dists, self.times, edges], axis=-1)
+            edges = edges.reshape(-1, 3)
 
             absents = self.env.absents()
             if len(absents) != 0:
@@ -436,7 +473,8 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
     #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
     #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
+    #initialize_vsp_envs('vsp_data_100/dummy_envs')
+    read_vsp_env("vsp_data_100/dummy_envs/dummy_env_read.txt")
 
 
 

@@ -220,7 +220,7 @@ def create_vsp_env_from_file(path, start_depot=-1):
 
     if len(service_trips.index)>N_JOBS:
         print("Downsizing input problem to N_STEPS: ", N_JOBS)
-        service_trips = service_trips.sample(n = 100)
+        service_trips = service_trips.sample(n = N_JOBS)
 
     if RANDOMIZE:
         deviation = random.uniform(0.7, 1.3)

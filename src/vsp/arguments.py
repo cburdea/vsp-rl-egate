@@ -2,7 +2,7 @@ import argparse
 
 def args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--N_JOBS', default=100)
+    parser.add_argument('-n', '--N_JOBS', default=10)
     parser.add_argument('-b', '--BATCH', default=1)
     parser.add_argument('-e', '--N_EPOCHS', default=1)
     parser.add_argument('--EVAL_MODE', default="vehicle") #alternative is vehicle or operational
