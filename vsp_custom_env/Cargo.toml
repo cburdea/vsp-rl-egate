@@ -1,14 +1,14 @@
 [package]
-name = "vsp_custom_env"
+name = "vsp_env"
 version = "0.1.1"
-authors = ["ioriiod0"]
+authors = ["ioriiod0, cburdea"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
 [lib]
-name = "vsp_custom_env"
+name = "vsp_env"
 crate-type = ["cdylib"]
 
 

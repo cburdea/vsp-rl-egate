@@ -144,6 +144,7 @@ class Decoder(nn.Module):
             else:
                 index = dist.sample()
 
+
             actions.append(index)
             log_p = dist.log_prob(index)
             log_ps.append(log_p)

@@ -98,18 +98,17 @@ impl Tour {
     #[inline(always)]
     fn calc_delta(&self,delta_d: f32,delta_t: f32,delta_w: f32) -> f32 {
         let mut delta = delta_d * self.vehicle.fee_per_dist + delta_w * self.vehicle.handling_cost_per_weight + delta_t * self.vehicle.fee_per_time;
-        // self.vehicle.fee_per_time * delta_t
-        if self.tour.len() == 0 {
-            delta += self.vehicle.fixed_cost;
-        }
         delta
+
     }
 
     #[inline(always)]
     fn calc_cost(&self) -> f32 {
         let last_state = self.states.last().unwrap();
+        //println!("------------------------------------");
+        //println!("{:?}", self.states);
 
-        let leave_depot_time = self.states[1].time - self.states[0].time_slack;
+        let leave_depot_time = self.states[1].time - self.states[0].time_slack;   //++////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         let mut time_conn_and_wait = 0.0;
         let return_depot_time = last_state.time - last_state.service_time;
         
@@ -119,14 +118,11 @@ impl Tour {
 
         let time_wo_service = leave_depot_time + time_conn_and_wait + return_depot_time;
 
-        // last_state.leave_time * self.vehicle.fee_per_time
-        //last_state.dist * self.vehicle.fee_per_dist   + last_state.weight * self.vehicle.handling_cost_per_weight + self.vehicle.fixed_cost
-        last_state.dist * self.vehicle.fee_per_dist   + last_state.weight * self.vehicle.handling_cost_per_weight + time_wo_service * self.vehicle.fee_per_time + self.vehicle.fixed_cost
+        last_state.dist * self.vehicle.fee_per_dist   + last_state.weight * self.vehicle.handling_cost_per_weight + time_wo_service * self.vehicle.fee_per_time
     }
     
     
 }
-
 
 
 #[derive(Clone,Debug)]
@@ -158,6 +154,7 @@ pub struct Solution {
     tours: Vec<Tour>,
     absents: Vec<usize>,
     pub cost: f32,
+    pub used_vehicles: f32,
 }
 
 impl Solution {
@@ -169,13 +166,58 @@ impl Solution {
             tours: Vec::with_capacity(100),
             absents: (0..len).collect(),
             cost: 0f32,
+            used_vehicles: 0.0
         }
+    }
+
+    fn update_used_vehicles(&mut self){
+        let mut time_blocks: Vec<(f32,f32)> = Vec::new();
+        let mut max_block_overlaps = 0.0;
+
+        let mut range_start = 999999999.0;
+        let mut range_end = 0.0;
+
+        for sol_tour in self.tours.iter(){
+            let block_start_time = sol_tour.states[0].time_slack; //++////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            let block_end_time =  sol_tour.states[sol_tour.states.len()-2].time + sol_tour.states[sol_tour.states.len()-2].service_time + sol_tour.states[sol_tour.states.len()-1].time - sol_tour.states[sol_tour.states.len()-1].service_time;
+            if block_start_time < range_start{
+                range_start = block_start_time;
+            }
+            if block_end_time > range_end{
+                range_end = block_end_time;
+            }
+            time_blocks.push((block_start_time, block_end_time));
+            //println!("start: {:?} end: {:?}", block_start_time, block_end_time);
+        }
+
+        for minute in range_start as i64..range_end as i64{
+            let mut intersections = 0.0;
+            for block in time_blocks.iter(){
+                let range = block.0 as i64..block.1 as i64;
+                if range.contains(&minute){
+                    intersections = intersections + 1.0;
+                }
+            }
+
+            if intersections > max_block_overlaps{
+                max_block_overlaps = intersections;
+            }
+        }
+
+        self.used_vehicles = max_block_overlaps;
+    }
+
+    pub fn get_number_used_vehicles(&mut self) -> f32{
+        self.update_used_vehicles();
+        //println!("{:?}", self.tours);
+        //println!("Number of vehicles used for solution: {:?}", self.used_vehicles);
+        self.used_vehicles
     }
 }
 
 impl fmt::Display for Solution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cost: {}, vehicles: {}, absents: {}", self.cost, self.tours.len(), self.absents.len())
+        write!(f, "cost: {}, vehicles: {}, absents: {}", self.cost, self.used_vehicles, self.absents.len())
     }
 }
 
@@ -195,10 +237,26 @@ impl Recreate {
         }
     }
 
+    pub fn get_cur_sol_cost(&self,s: &mut Solution) -> f32{
+        let mut cost: f32 = s.tours.iter().map(|x| { x.calc_cost() }).sum();
+        //println!("cost operational: {:?}", cost);
+        let vehicle_costs_total = s.get_number_used_vehicles() * &s.vm.vehicles[0].fixed_cost;
+        cost += vehicle_costs_total;
+        //println!("cost vehicle: {:?}", vehicle_costs_total);
+        //for t in s.tours.iter(){
+        //    println!("{:?}", t.tour);
+        //}
+        cost
+    }
+
     #[inline(always)]
     pub fn calc_cost(&self,s: &mut Solution) {
         let mut cost: f32 = s.tours.iter().map(|x| { x.calc_cost() }).sum();
         cost += self.cost_per_absent * s.absents.len() as f32;
+        cost += s.get_number_used_vehicles() * &s.vm.vehicles[0].fixed_cost;
+        //for t in s.tours.iter(){
+        //    println!("{:?}", t.tour);
+        //}
         s.cost = cost;
     }
 
@@ -330,9 +388,11 @@ impl Recreate {
 
     #[inline(always)]
     fn try_insert_tour(&self,tour: &Tour,job: &Job) -> (usize,f32) {
-        //println!("");
         //println!("########################");
         //println!("tour: {:?}", tour.tour);
+        //for elem in tour.states.iter(){
+        //    println!("{:?}", elem);
+        //}
         //println!("input job: {:?}", job.loc -1);
 
         let states = &tour.states;
@@ -348,7 +408,10 @@ impl Recreate {
 
         for (j,w) in states.windows(2).enumerate() {
             //println!("----------------------");
-            //println!("j: {:?}, w: {:?}", j, w);
+            //println!("j: {:?}", j);
+            //for elem in w.iter(){
+            //    println!("{:?}", elem);
+            //}
 
             let delta_stops = if w[0].loc != job.loc && w[1].loc != job.loc {
                 1
@@ -356,32 +419,36 @@ impl Recreate {
                 0
             };
 
-            //check max_stops
-            if v.max_stops > 0 && delta_stops + last_state.stops > v.max_stops {
-                //println!("max_stops check failed");
-                continue;
-            }
 
-            let dt1 = &self.dist_time[w[0].loc][job.loc];
-            let dt2 = &self.dist_time[job.loc][w[1].loc];
-            let dt3 = &self.dist_time[w[0].loc][w[1].loc];
+
+            let dt1 = &self.dist_time[w[0].loc][job.loc];   //first to job
+            let dt2 = &self.dist_time[job.loc][w[1].loc];   //job to second
+            let dt3 = &self.dist_time[w[0].loc][w[1].loc];  //first to second
 
             //println!("dt1 {:?}", dt1);
             //println!("dt2 {:?}", dt2);
             //println!("dt3 {:?}", dt3);
 
+
+            //check max_stops
+            //if v.max_stops > 0 && delta_stops + last_state.stops > v.max_stops {
+            //    //println!("max_stops check failed");
+            //    continue;
+            //}
+
             //check max_dist
             let delta_d =  dt1.dist + dt2.dist - dt3.dist;
-            if v.max_dist > 0f32 && delta_d + last_state.dist > v.max_dist {
-                //println!("max_dist check failed");
-                //println!("continue");
-                continue;
-            }
-
+            //println!("original distance {:?}", dt3.dist);
+            //println!("distance with job {:?}", dt1.dist + dt2.dist);
             //println!("delta_d: {:?}", delta_d);
+            //if v.max_dist > 0f32 && delta_d + last_state.dist > v.max_dist {
+            //    println!("max_dist check failed");
+            //    println!("continue");
+            //    continue;
+            //}
 
             let mut t = w[0].time;
-            t += dt1.time + w[0].service_time;
+            t += w[0].service_time + dt1.time ;
             //check self time window
             if t > job.tw.end {
                 //println!("time window check failed");
@@ -401,7 +468,7 @@ impl Recreate {
             let mut time_to_job = 0f32;
             let mut time_from_job = 0f32;
 
-
+            //Calculate net time between trips
             if j == 0 {
                 original_time = dt3.time;
                 time_to_job = dt1.time;
@@ -426,27 +493,49 @@ impl Recreate {
             //println!("delta_t: {:?}", delta_t);
 
             // ------------------------------------------------------------------------------------------------------------------------------------------
-            
-            if t - w[1].time> w[1].time_slack { 
-                debug!("===========>check failed");
-                //println!("time slack check failed");
-                continue;
+            //if t - w[1].time > w[1].time_slack { ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            //    debug!("===========>check failed");
+            //    println!("time slack check failed");
+            //    println!("t: {:?}, w1.time: {:?}, w1.time_slack: {:?}", t, w[1].time, w[1].time_slack);
+            //    continue;
+            //}
+
+            if j > 0 && j < tour.tour.len(){
+                if w[0].time + w[0].service_time + dt1.time > job.tw.start {
+                    continue;
+                } else if job.tw.start + job.service_time + dt2.time > w[1].time{
+                    continue
+                }
+            } else if j == 0 && j != tour.tour.len(){
+                if job.tw.start - dt1.time < 0.0  {
+                    continue;
+                } else if job.tw.start + job.service_time + dt2.time > w[1].time{
+                    //println!("4: Ankunft: {:?}, time: {:?}", job.tw.start + job.service_time + dt2.time , w[1].time);
+                    continue;
+                }
+            } else if j == tour.tour.len() {
+                if job.tw.start + job.service_time + dt2.time > tour.vehicle.tw.end{
+                    continue;
+                } else if w[0].time + w[0].service_time + dt1.time > job.tw.start {
+                    continue;
+                }
+            } else {
+                println!("WARNING: temporal contraints violated during insertion")
             }
 
             // -------------------------------------------------------------------------------------------------------------------------------------------
             
             let delta_cost = tour.calc_delta(delta_d,delta_t,job.weight);
-            debug!("===========>delta: {:?},delta_d: {:?},delta_t: {:?}",delta_cost,delta_d,delta_t);
-            //println!("::::::::::::>delta: {:?},delta_d: {:?},delta_t: {:?}",delta_cost,delta_d,delta_t);
+            debug!("===========>delta: {:?}, delta_d: {:?}, delta_t: {:?}",delta_cost,delta_d,delta_t);
+            //println!("---->Insertion possible - delta: {:?}, delta_d: {:?},delta_t: {:?}",delta_cost, delta_d, delta_t);
             
             if delta_cost < best {
-                //println!("delta_cost: {:?} best: {:?} - Verbesserung in w: {:?}",delta_cost, best, w);
+                //println!("delta_cost: {:?}",delta_cost);
                 pos = j;
                 best = delta_cost;
             }
-
         }
-
+        //println!("");
         (pos,best)
     }
 
@@ -456,11 +545,13 @@ impl Recreate {
         let mut best = std::f32::MAX;
 
         for (i,tour) in tours.iter().enumerate() {
+
             let (j,delta) = self.try_insert_tour(tour, job);
             if delta < best {
                 best = delta;
                 pos = (i,j);
             }
+
         }
 
         (pos.0,pos.1,best)
@@ -499,6 +590,9 @@ impl Recreate {
     fn recreate(&self, s: &mut Solution,random: bool) {
         // info!("before recreate tour lens:{:?},{:?}", s.tours.iter().map(|x| x.tour.len()).sum::<usize>(),s.absents.len());
 
+        let mut dummy_solution = &mut s.clone();
+        //println!("dummy: {:?}", dummy_solution);
+
         self.create_states(s);
         let absents = &mut s.absents;
         let tours = &mut s.tours;
@@ -511,33 +605,48 @@ impl Recreate {
         }
 
         absents.drain_filter(|x| {
+            dummy_solution.tours = tours.clone();
+
             let job = &jobs[*x];
             let (t,j,delta) = self.try_insert(tours,job);
+            //////////////////////////////////////////////////////////////
+            let v = vm.alloc(job);
+            let mut extra_tour = Tour::new(v,100);
+            self.create_tour_states(jobs, &mut extra_tour);
+            let (j,extra_delta) = self.try_insert_tour(&extra_tour, job);
+            if extra_delta == std::f32::MAX {
+                // info!("failed to add new ve: {}, {}",tours.len(),s.max_tours);
+                // info!("failed to add new tour ====>  tour.states:{:?},job:{:?}",tour.states,job);
+                return false;
+            }
+            self.do_insert(jobs, &mut extra_tour, j, *x);
+            ///////////////////////////////////////////////////////////////
             if delta == std::f32::MAX {
-                // info!("try add new ve: {}, {}",tours.len(),s.max_tours);
-                let v = vm.alloc(job);
-                let mut tour = Tour::new(v,100);
-                self.create_tour_states(jobs, &mut tour);
-                let (j,delta) = self.try_insert_tour(&tour, job);
-                if delta == std::f32::MAX {
-                    // info!("failed to add new ve: {}, {}",tours.len(),s.max_tours);
-                    // info!("failed to add new tour ====>  tour.states:{:?},job:{:?}",tour.states,job);
-                    return false;
-                }
-                self.do_insert(jobs, &mut tour, j, *x);
-                tours.push(tour);
-              
+                tours.push(extra_tour);
             } else {
-                let tour = &mut tours[t];
-                self.do_insert(jobs, tour, j, *x);
+                //calculate extra cost when inserting a tour
+                let mut cost_existing_block = delta;
+
+                //calculate extra cost when adding a new block
+                let mut cost_before_block = self.get_cur_sol_cost(dummy_solution);
+                dummy_solution.tours.push(extra_tour.clone());
+                let mut cost_after_block = self.get_cur_sol_cost(dummy_solution);
+                let mut cost_extra_block = cost_after_block - cost_before_block;
+                //println!("Cost existing block: {:?}, Cost extra block: {:?}", cost_existing_block, cost_extra_block);
+
+                if cost_existing_block <= cost_extra_block{
+                    let tour = &mut tours[t];
+                    self.do_insert(jobs, tour, j, *x);
+                } else {
+                    tours.push(extra_tour);
+                }
+
+                //println!("B###########################################################################################################################################################################################################################################################################################################################################################################################################################################");
             }
             true
-
         });
-
         self.calc_cost(s);
         // info!("after recreate tour lens:{:?},{:?}", s.tours.iter().map(|x| x.tour.len()).sum::<usize>(),s.absents.len());
-
     }
 }
 
@@ -635,8 +744,6 @@ pub struct Env {
 }
 
 
-///**
-
 #[pymethods]
 impl Env {
 
@@ -649,7 +756,6 @@ impl Env {
 
         Ok(())
     }
-
 
     fn states(&self, py: Python) -> PyResult<Vec<Vec<State>>> {
         Ok(self.inner.states())
@@ -668,7 +774,7 @@ impl Env {
     }
 
     fn cost(&self,py: Python) -> PyResult<f32> {
-        Ok(self.inner.cost())
+        Ok(self.inner.cost()) 
     }
 
 }
@@ -688,6 +794,7 @@ impl BatchEnv {
         let envs: Vec<EnvInner> = input_strs.iter().map(|x| {
             EnvInner::new(x)
         }).collect();
+
         obj.init(BatchEnv {
             envs: envs,
         });
@@ -709,7 +816,6 @@ impl BatchEnv {
         Ok(ret)
     }
 
-    
     fn step(&mut self,py: Python,jobs: Vec<Vec<usize>>) -> PyResult<()> {
         self.envs.iter_mut().zip(jobs.iter().cloned()).for_each(|x|{
             x.0.step(x.1)
@@ -726,7 +832,7 @@ impl BatchEnv {
 
     fn cost(&self,py: Python) -> PyResult<Vec<f32>> {
         let ret = self.envs.iter().map(|x|{
-            x.cost()
+            x.cost() //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////Hier irgendwas mit Kosten
         }).collect::<Vec<_>>();
         Ok(ret)
     }
@@ -734,7 +840,7 @@ impl BatchEnv {
 
 
 #[pymodule]
-fn vsp_custom_env(py: Python, m: &PyModule) -> PyResult<()> {
+fn vsp_env(py: Python, m: &PyModule) -> PyResult<()> {
     CombinedLogger::init(
         vec![
             WriteLogger::new(LevelFilter::Info, Config::default(), File::create("log.log").unwrap()),
@@ -743,9 +849,4 @@ fn vsp_custom_env(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Env>()?;
     m.add_class::<BatchEnv>()?;
     Ok(())
-}
-
-
-pub fn test_env(){
-    println!("test env succ");
 }

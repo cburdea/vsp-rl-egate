@@ -28,7 +28,7 @@ if __name__ == "__main__":
     ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
     N_ROLLOUT = int(args.N_ROLLOUT)
     N_EPOCHS = int(args.N_EPOCHS)
-    EVAL_MODE = (args.EVAL_MODE)
+    REMOVE_NUMBER = int(args.REMOVE_NUMBER)
 
     model = Model(input_node_dim=4, hidden_node_dim=64, input_edge_dim=3, hidden_edge_dim=16)
     #model = torch.nn.DataParallel(model, device_ids=[0, 1], output_device=device)
@@ -43,7 +43,7 @@ if __name__ == "__main__":
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
           train_steps=4,
-          n_remove=2)
+          n_remove=REMOVE_NUMBER)
 
 
     gc.collect()

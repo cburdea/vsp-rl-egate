@@ -15,6 +15,7 @@ import lib.input_reader as reader
 import csv
 import timeit
 import warnings
+import vsp_env
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -27,29 +28,23 @@ LR = float(args.LR)
 init_T = float(args.init_T)
 final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
-EVAL_MODE = str(args.EVAL_MODE)
 RANDOMIZE = str(args.RANDOMIZE)
 PRE_STEPS = int(args.PRE_STEPS)
 ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
+REMOVE_NUMBER = int(args.REMOVE_NUMBER)
 
 
-MAX_DIST = 100000000 # Scale for normalizing
+MAX_DIST = 400000 # Scale for normalizing
 MAX_TIME = 2280 # Scale for normalizing
-n_instances = 1
-
-if EVAL_MODE == "operational":
-    import vsp_custom_env as vsp_env
-else:
-    import vrp_env as vsp_env
+n_instances = 128
 
 reward_norm = RunningMeanStd()
 vsp_envs = []
 
-
 def read_vsp_env(path):
     global vsp_envs
     vsp_envs.append(reader.create_vsp_env_from_file(path)[0])
-    print(vsp_envs)
+
 
 def initialize_vsp_envs(path):
     global vsp_envs
@@ -67,17 +62,10 @@ def create_env(n_jobs, _input=None, epoch = 0):
                 _input = vsp_envs[random.randint(0, len(vsp_envs) - 1)]
                 _input['c2'] = (final_T / init_T) ** (1.0 / ROLLOUT_STEPS)
                 _input['temperature'] = init_T
-                if EVAL_MODE == "operational":
-                    _input['vehicles'][0]['fee_per_dist'] = 120
-                    _input['vehicles'][0]['fee_per_time'] = 60
-                    _input['vehicles'][0]['fixed_cost'] = 0
-                else:
-                    _input['vehicles'][0]['fee_per_dist'] = 120
-                    _input['vehicles'][0]['fee_per_time'] = 0
-                    _input['vehicles'][0]['fixed_cost'] = 1000
+                _input['vehicles'][0]['fee_per_dist'] = 120 / 1000
+                _input['vehicles'][0]['fee_per_time'] = 60 / 60
+                _input['vehicles'][0]['fixed_cost'] = 1000
                 _input['vehicles'][0]['tw']['end'] = 4000
-
-
 
             if RANDOMIZE:
                 #shift = random.randint(-5,+5)
@@ -127,7 +115,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
             time_until_job = 0
 
             for i, (tour, tour_state) in enumerate(zip(tours, states)):
-                print("x x x x x x x x x x x x x x x x x x x x x x x x x")
+                # print("x x x x x x x x x x x x x x x x x x x x x x x x x")
                 service_trips_tour = list(zip(tour, tour_state[1:]))
                 for j, (index, s) in enumerate(service_trips_tour):
                     job = jobs[index]
@@ -169,6 +157,10 @@ def create_env(n_jobs, _input=None, epoch = 0):
                                              time_until_job / MAX_TIME,
                                              dist_until_job / MAX_DIST,
                                             ]
+
+                    if embedding_information[0] > 1 or embedding_information[3] > 1:
+                        print("WARNING: Normalizing not correct\n", embedding_information )
+
                     '''
                     print("before: ",  solution_job_before)
                     print("current: ", solution_job)
@@ -185,6 +177,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
                                      "time_until_job",
                                      "dist_until_job",
                                     ],embedding_information]))
+                    print(dist_until_job)
                     print("\n")
                     '''
                     nodes[loc, :] = embedding_information
@@ -364,8 +357,8 @@ def roll_out(model, envs, states, n_jobs, rollout_steps=10, _lambda=0.99, n_remo
         for i in range(rollout_steps):
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
-            actions, log_p, values, entropy = model(data, n_remove, greedy, 128)
-            #             print (actions)
+            actions, log_p, values, entropy = model(data, n_remove, greedy, n_instances)
+
             new_nodes, new_edges, rewards = envs.step(actions.cpu().numpy())
             rewards = np.array(rewards)
             _sum = _sum + rewards
@@ -443,7 +436,7 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
         _sum = np.zeros(n_instances)
         for i in range(n_steps):
             #print("Achtung: Eval_Random Funktion noch anpassen")
-            actions = [random.sample(range(0, n_jobs), 10) for i in range(n_instances)]
+            actions = [random.sample(range(0, n_jobs), REMOVE_NUMBER) for i in range(n_instances)]
             actions = np.array(actions)
             new_nodes, new_edges, rewards = envs.step(actions)
             _sum += rewards
@@ -455,7 +448,7 @@ def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
 
 def random_init(envs, n_steps, n_jobs):
 
-    n_remove_init = 10
+    n_remove_init = REMOVE_NUMBER
 
     nodes, edges = envs.reset()
     for i in range(n_steps):
@@ -473,8 +466,8 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
     #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
     #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    #initialize_vsp_envs('vsp_data_100/dummy_envs')
-    read_vsp_env("vsp_data_100/dummy_envs/dummy_env_read.txt")
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
+    #read_vsp_env("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/dummy_envs/dummy_env_read.txt")
 
 
 
@@ -495,7 +488,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         before_mean_cost = np.mean([env.cost for env in envs.envs])
 
         print('\n-----------------------------------------------------------------------------------------------------')
-        print("> before mean cost " + EVAL_MODE + ": " + str(before_mean_cost))
+        print("> before mean cost " + ": " + str(before_mean_cost))
         before_cost = np.mean([env.cost for env in envs.envs])
 
         all_datas = []
@@ -522,11 +515,11 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         print('-----------------------------------------------------------------------------------------------------')
 
         if epoch % 100 == 0:
-            torch.save(model.state_dict(), parentdir + '/' + "model/vsp_" + EVAL_MODE + "_model_epoch_%s.model" % epoch)
+            torch.save(model.state_dict(), parentdir + '/' + "model/vsp_preSteps{}_rm{}_model_epoch_{}.model".format(str(PRE_STEPS),str(REMOVE_NUMBER), epoch))
 
-    torch.save(model.state_dict(), parentdir + '/' + "model/vsp_" + EVAL_MODE + "_model_final.model")
+    torch.save(model.state_dict(), parentdir + '/' + "model/vsp_reSteps{}_rm{}_model_final.model".format(str(PRE_STEPS),str(REMOVE_NUMBER)))
 
-    log_path = parentdir + '/' + 'log_prod_' + EVAL_MODE + '.csv'
+    log_path = parentdir + '/log_prod_preSteps{}_rm{}.csv'.format(str(PRE_STEPS),str(REMOVE_NUMBER))
     for l in log:
         with open(log_path, 'a') as f:
             writer = csv.writer(f)

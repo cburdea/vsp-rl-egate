@@ -147,7 +147,7 @@ def convert_connections_to_df(timetable):
 
     dataset['FromStopID'] = dataset['FromStopID'].astype(int)
     dataset['ToStopID'] = dataset['ToStopID'].astype(int)
-    dataset['RunTime'] = dataset['RunTime'].astype(int)
+    dataset['RunTime'] = dataset['RunTime'].astype(int) / 60
     if 'Distance' in dataset:
         dataset['Distance'] = dataset['Distance'].astype(int)
 
@@ -189,9 +189,7 @@ def get_dist_time(i_id, j_id, connections):
         try:
             dist = connection_comp.loc[:, 'Distance'].item()
             time = connection_comp.loc[:, 'RunTime'].item()
-            #print(i_id, j_id, dist, time / 60)
-            # print('---')
-            return dist, time/60
+            return dist, time
         except:
             #print(i_id)
             #print(j_id)
@@ -203,8 +201,8 @@ def get_dist_time(i_id, j_id, connections):
 def create_vsp_env_from_file(path, start_depot=-1):
 
     timetable = create_timetable_from_file(path)
-    #for elem in timetable:
-    #    print(tabulate(elem))
+#    for elem in timetable:
+#        print(tabulate(elem))
 
     if start_depot == -1:
         depot_id = int(timetable[5][1][1])
@@ -218,11 +216,16 @@ def create_vsp_env_from_file(path, start_depot=-1):
     service_trips = convert_timetable_to_df(timetable)
     connections = convert_connections_to_df(timetable)
 
+    print(connections)
+    print(service_trips)
+
+
     if len(service_trips.index)>N_JOBS:
         print("Downsizing input problem to N_STEPS: ", N_JOBS)
         service_trips = service_trips.sample(n = N_JOBS)
 
-    if RANDOMIZE:
+    if RANDOMIZE == True:
+        print("WARNING: Randomizing input")
         deviation = random.uniform(0.7, 1.3)
         connections["Distance"] = connections["Distance"].apply(lambda x: int(x * deviation))
         connections["RunTime"] = connections["RunTime"].apply(lambda x: int(x * deviation))
