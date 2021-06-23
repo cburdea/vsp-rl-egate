@@ -260,7 +260,6 @@ def create_batch_env(batch_size, n_jobs, epoch = 0):
 
             list_env_act = [[env, act] for env, act in zip(self.envs, actions)]
             def step_parallel(arr):
-                print("parallel exec")
                 return arr[0].step(arr[1])
 
             pool = ThreadPool(N_THREADS)
@@ -479,10 +478,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    initialize_vsp_envs('vsp_data_100/dummy_envs')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    #initialize_vsp_envs('vsp_data_100/dummy_envs')
     #read_vsp_env("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/dummy_envs/dummy_env_read.txt")
 
 
@@ -517,7 +516,6 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
 
         def rollout_parallel(r):
-            print("N_ROLLOUT: ", r)
             ret_data = []
             datas, _ = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
             ret_data.extend(datas)
