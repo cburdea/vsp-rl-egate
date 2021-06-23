@@ -226,6 +226,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
             nodes, edges = self.get_states()
             reward = prev_cost - self.cost
             # print(self.vsp_tours)
+            print("Step done")
             return nodes, edges, reward
 
     env = Env(n_jobs, _input, epoch = epoch)
@@ -355,6 +356,7 @@ def roll_out(model, envs, states, n_jobs, rollout_steps=10, _lambda=0.99, n_remo
         _entropy = []
 
         for i in range(rollout_steps):
+            print("Rollout: ", i)
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
             actions, log_p, values, entropy = model(data, n_remove, greedy, n_instances)

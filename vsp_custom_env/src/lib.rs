@@ -189,7 +189,7 @@ impl Solution {
                 range_end = block_end_time;
             }
             time_blocks.push((block_start_time, block_end_time));
-            println!("start: {:?} end: {:?}", block_start_time, block_end_time);
+            //println!("start: {:?} end: {:?}", block_start_time, block_end_time);
         }
 
         if time_blocks != self.block_ranges{
@@ -211,7 +211,7 @@ impl Solution {
 
     pub fn get_number_used_vehicles(&mut self) -> f32{
         self.update_used_vehicles();
-        println!("Number of vehicles used for solution: {:?}", self.used_vehicles);
+        //println!("Number of vehicles used for solution: {:?}", self.used_vehicles);
         self.used_vehicles
     }
 }
@@ -258,7 +258,7 @@ impl Recreate {
         //for t in s.tours.iter(){
         //    println!("{:?}", t.tour);
         //}
-        println!("Total costs: {:?}", cost);
+        //println!("Total costs: {:?}", cost);
         s.cost = cost;
     }
 
@@ -390,12 +390,12 @@ impl Recreate {
 
     #[inline(always)]
     fn try_insert_tour(&self,tour: &Tour,job: &Job) -> (usize,f32) {
-        println!("++++++TRY INSERT TOUR ++++++");
-        println!("input job: {:?}", job.loc -1);
-        println!("tour: {:?}", tour.tour);
-        for elem in tour.states.iter(){
-            println!("{:?}", elem);
-        }
+        //println!("++++++TRY INSERT TOUR ++++++");
+        //println!("input job: {:?}", job.loc -1);
+        //println!("tour: {:?}", tour.tour);
+        //for elem in tour.states.iter(){
+        //    println!("{:?}", elem);
+        //}
 
         let states = &tour.states;
         let v = &tour.vehicle;
@@ -409,11 +409,11 @@ impl Recreate {
         }
 
         for (j,w) in states.windows(2).enumerate() {
-            println!("----------------------");
-            println!("j: {:?}", j);
-            for elem in w.iter(){
-                println!("{:?}", elem);
-            }
+            //println!("----------------------");
+            //println!("j: {:?}", j);
+            //for elem in w.iter(){
+            //    println!("{:?}", elem);
+            //}
 
             let delta_stops = if w[0].loc != job.loc && w[1].loc != job.loc {
                 1
@@ -453,7 +453,7 @@ impl Recreate {
             t += w[0].service_time + dt1.time ;
             //check self time window
             if t > job.tw.end {
-                println!("time window check failed");
+                //println!("time window check failed");
                 break;
             }
 
@@ -590,7 +590,7 @@ impl Recreate {
     }
 
     fn recreate(&self, s: &mut Solution,random: bool) {
-        println!("\n\n\n\n\nA###############################################################################################################################");
+        //println!("\nA###############################################################################################################################");
 
         // info!("before recreate tour lens:{:?},{:?}", s.tours.iter().map(|x| x.tour.len()).sum::<usize>(),s.absents.len());
 
@@ -670,13 +670,13 @@ impl Recreate {
             }
             true
         });
-        println!("Solution fully repaired:");
-        for elem in tours.iter(){
-            println!(">{:?}",elem.tour);
-        }
+        //println!("Solution fully repaired:");
+        //for elem in tours.iter(){
+        //    println!(">{:?}",elem.tour);
+        //}
 
         self.calc_cost(s);
-        println!("B###############################################################################################################################");
+        //println!("B###############################################################################################################################");
         // info!("after recreate tour lens:{:?},{:?}", s.tours.iter().map(|x| x.tour.len()).sum::<usize>(),s.absents.len());
     }
 }
