@@ -16,6 +16,7 @@ import csv
 import timeit
 import warnings
 import vsp_env
+from multiprocessing.dummy import Pool as ThreadPool
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -30,8 +31,10 @@ final_T = float(args.final_T)
 N_STEPS = float(args.N_STEPS)
 RANDOMIZE = str(args.RANDOMIZE)
 PRE_STEPS = int(args.PRE_STEPS)
+N_ROLLOUT = int(args.N_ROLLOUT)
 ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
 REMOVE_NUMBER = int(args.REMOVE_NUMBER)
+N_THREADS = int(args.N_THREADS)
 
 
 MAX_DIST = 600000 # Scale for normalizing
@@ -226,7 +229,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
             nodes, edges = self.get_states()
             reward = prev_cost - self.cost
             # print(self.vsp_tours)
-            print("Step done")
+            #print("Step done")
             return nodes, edges, reward
 
     env = Env(n_jobs, _input, epoch = epoch)
@@ -252,7 +255,18 @@ def create_batch_env(batch_size, n_jobs, epoch = 0):
         def step(self, actions):
             actions = actions.tolist()
             assert (len(actions) == len(self.envs))
-            rets = [env.step(act) for env, act in zip(self.envs, actions)]
+
+            #rets = [env.step(act) for env, act in zip(self.envs, actions)]
+
+            list_env_act = [[env, act] for env, act in zip(self.envs, actions)]
+            def step_parallel(arr):
+                print("parallel exec")
+                return arr[0].step(arr[1])
+
+            pool = ThreadPool(N_THREADS)
+            rets = pool.map(step_parallel, list_env_act)
+            pool.close()
+
             return list(zip(*rets))
 
         def sisr_step(self):
@@ -356,7 +370,6 @@ def roll_out(model, envs, states, n_jobs, rollout_steps=10, _lambda=0.99, n_remo
         _entropy = []
 
         for i in range(rollout_steps):
-            print("Rollout: ", i)
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
             actions, log_p, values, entropy = model(data, n_remove, greedy, n_instances)
@@ -462,13 +475,14 @@ def random_init(envs, n_steps, n_jobs):
 
 
 def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
+
     opt = torch.optim.Adam(model.parameters(), LR)
     start = timeit.default_timer()
 
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
-    #initialize_vsp_envs('vsp_data_100/dummy_envs')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    initialize_vsp_envs('vsp_data_100/dummy_envs')
     #read_vsp_env("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/dummy_envs/dummy_env_read.txt")
 
 
@@ -483,6 +497,8 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         envs = create_batch_env(n_instances, N_JOBS, epoch=epoch)
 
+        states = 0;
+
         if PRE_STEPS > 0:
             states, mean_cost = random_init(envs, PRE_STEPS, N_JOBS)
         else:
@@ -493,10 +509,24 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         print("> before mean cost " + ": " + str(before_mean_cost))
         before_cost = np.mean([env.cost for env in envs.envs])
 
+        # all_datas = []
+        # for i in range(n_rollout):
+        #    print("Rollout Number: ", i)
+        #    datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
+        #    all_datas.extend(datas)
+
+
+        def rollout_parallel(r):
+            print("N_ROLLOUT: ", r)
+            ret_data = []
+            datas, _ = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
+            ret_data.extend(datas)
+            return ret_data[0]
+
         all_datas = []
-        for i in range(n_rollout):
-            datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
-            all_datas.extend(datas)
+        pool = ThreadPool(N_THREADS)
+        all_datas.extend(pool.map(rollout_parallel, list(range(0, n_rollout+1))))
+        pool.close()
 
         gc.collect()
 
