@@ -628,17 +628,27 @@ impl Recreate {
                 let mut cost_existing_block = delta;
 
                 //calculate extra cost when adding a new block
-                let mut cost_before_block = self.get_cur_sol_cost(dummy_solution);
-                dummy_solution.tours.push(extra_tour.clone());
-                let mut cost_after_block = self.get_cur_sol_cost(dummy_solution);
-                let mut cost_extra_block = cost_after_block - cost_before_block;
-                //println!("Cost existing block: {:?}, Cost extra block: {:?}", cost_existing_block, cost_extra_block);
+                let mut cost_extra_block_no_vehicle = extra_tour.calc_cost();
 
-                if cost_existing_block <= cost_extra_block{
+                let mut new_block = false;
+
+                if cost_extra_block_no_vehicle + vm.vehicles[0].fixed_cost < cost_existing_block{
+                    new_block = true;
+                } else if cost_extra_block_no_vehicle < cost_existing_block +vm.vehicles[0].fixed_cost{
+                    let mut cost_before_block = self.get_cur_sol_cost(dummy_solution);
+                    dummy_solution.tours.push(extra_tour.clone());
+                    let mut cost_after_block = self.get_cur_sol_cost(dummy_solution);
+                    let mut cost_extra_block = cost_after_block - cost_before_block;
+                    if cost_existing_block <= cost_extra_block{
+                        new_block = true;
+                    }
+                }
+
+                if new_block{
+                    tours.push(extra_tour);
+                } else {
                     let tour = &mut tours[t];
                     self.do_insert(jobs, tour, j, *x);
-                } else {
-                    tours.push(extra_tour);
                 }
 
                 //println!("B###########################################################################################################################################################################################################################################################################################################################################################################################################################################");
