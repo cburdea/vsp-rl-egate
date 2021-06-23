@@ -34,7 +34,7 @@ ROLLOUT_STEPS = int(args.ROLLOUT_STEPS)
 REMOVE_NUMBER = int(args.REMOVE_NUMBER)
 
 
-MAX_DIST = 400000 # Scale for normalizing
+MAX_DIST = 600000 # Scale for normalizing
 MAX_TIME = 2280 # Scale for normalizing
 n_instances = 128
 
@@ -159,7 +159,7 @@ def create_env(n_jobs, _input=None, epoch = 0):
                                             ]
 
                     if embedding_information[0] > 1 or embedding_information[3] > 1:
-                        print("WARNING: Normalizing not correct\n", embedding_information )
+                        print("WARNING: Normalizing durin embedding not correct\n", embedding_information )
 
                     '''
                     print("before: ",  solution_job_before)
