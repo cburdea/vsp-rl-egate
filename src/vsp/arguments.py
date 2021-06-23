@@ -1,6 +1,6 @@
 import argparse
 
-
+'''
 def args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--N_JOBS', default=100)
@@ -35,4 +35,3 @@ def args():
     parser.add_argument('--final_T', default=1.0)
     parser.add_argument('--device', default="cpu")
     return parser.parse_args()
-'''
