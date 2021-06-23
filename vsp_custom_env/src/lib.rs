@@ -206,21 +206,10 @@ impl Solution {
             //look for greatest sum to determine the amount of needed vehicles
             let counted_vehicles = minutes.iter().max().unwrap();
             self.used_vehicles = *counted_vehicles as f32;
-        } else {
-                println!("keine neuberechnung notwendig");
         }
-        println!("---");
     }
 
     pub fn get_number_used_vehicles(&mut self) -> f32{
-        println!("---");
-        for elem in self.tours.iter(){
-            println!("{:?}", elem.tour);
-            for t in elem.states.iter(){
-                println!("{:?}", t);
-            }
-
-        }
         self.update_used_vehicles();
         println!("Number of vehicles used for solution: {:?}", self.used_vehicles);
         self.used_vehicles
@@ -624,15 +613,14 @@ impl Recreate {
 
             let job = &jobs[*x];
 
-            for elem in dummy_solution.tours.iter(){
-                        println!("----->{:?}",elem.tour);
-                    }
-             println!("Insertion Job: {:?}", job.id);
+            //for elem in dummy_solution.tours.iter(){
+            //            println!("----->{:?}",elem.tour);
+            //}
+            //println!("Insertion Job: {:?}", job.id);
 
             let (t,j,delta) = self.try_insert(tours,job);
 
             //////////////////////////////////////////////////////////////
-            println!("Check emtpy tour");
             let v = vm.alloc(job);
             let mut extra_tour = Tour::new(v,100);
             self.create_tour_states(jobs, &mut extra_tour);
@@ -647,7 +635,6 @@ impl Recreate {
                 }
                 self.do_insert(jobs, &mut extra_tour, i, *x);
                 tours.push(extra_tour);
-                println!("okay");
             } else {
                 //calculate extra cost when inserting a tour
                 let mut cost_existing_block = delta;
@@ -663,7 +650,7 @@ impl Recreate {
                 } else if cost_extra_block_no_vehicle + vm.vehicles[0].fixed_cost < cost_existing_block{
                     new_block = true;
                 } else if cost_extra_block_no_vehicle < cost_existing_block{
-                    println!("Kosten werden beim Einfügen neu berechnet");
+                    //println!("Kosten werden beim Einfügen neu berechnet");
                     let mut cost_before_block = self.get_cur_sol_cost(dummy_solution);
                     dummy_solution.tours.push(extra_tour.clone());
                     let mut cost_after_block = self.get_cur_sol_cost(dummy_solution);
