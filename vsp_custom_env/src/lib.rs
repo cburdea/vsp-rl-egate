@@ -631,13 +631,12 @@ impl Recreate {
                 let mut cost_extra_block_no_vehicle = extra_tour.calc_cost();
 
                 let mut new_block = false;
-                println!("");
-                println!("cost_existing_block {:?}", cost_existing_block);
-                println!("cost_extra_block_no_vehicle {:?}", cost_extra_block_no_vehicle);
-                if cost_extra_block_no_vehicle + vm.vehicles[0].fixed_cost < cost_existing_block{
+
+                if cost_existing_block <= cost_extra_block_no_vehicle{
+                    new_block = false;
+                } else if cost_extra_block_no_vehicle + vm.vehicles[0].fixed_cost < cost_existing_block{
                     new_block = true;
                 } else if cost_extra_block_no_vehicle < cost_existing_block{
-                    println!("Grenzfall: Berechnung notwendig");
                     let mut cost_before_block = self.get_cur_sol_cost(dummy_solution);
                     dummy_solution.tours.push(extra_tour.clone());
                     let mut cost_after_block = self.get_cur_sol_cost(dummy_solution);
@@ -647,12 +646,8 @@ impl Recreate {
                     }
                 }
                 if new_block{
-                    println!("Neuer Block");
                     tours.push(extra_tour);
-
                 } else {
-                    println!("Existierender Block");
-
                     let tour = &mut tours[t];
                     self.do_insert(jobs, tour, j, *x);
                 }
