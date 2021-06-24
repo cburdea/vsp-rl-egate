@@ -369,6 +369,7 @@ def roll_out(model, envs, states, n_jobs, rollout_steps=10, _lambda=0.99, n_remo
         _entropy = []
 
         for i in range(rollout_steps):
+            gc.collect()
             data = buffer.create_data(nodes, edges)
             data = data.to(device)
             actions, log_p, values, entropy = model(data, n_remove, greedy, n_instances)
@@ -529,7 +530,6 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         dl = DataLoader(all_datas, BATCH_SIZE, shuffle=True)
         for j in range(train_steps):
             train_once(model, opt, dl, epoch, 0)
-            gc.collect()
 
         mean = np.mean([env.cost for env in envs.envs])
 
