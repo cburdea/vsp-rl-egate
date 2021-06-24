@@ -526,12 +526,10 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         all_datas.extend(pool.map(rollout_parallel, list(range(0, n_rollout+1))))
         pool.close()
 
-        gc.collect()
-
         dl = DataLoader(all_datas, BATCH_SIZE, shuffle=True)
         for j in range(train_steps):
-            gc.collect()
             train_once(model, opt, dl, epoch, 0)
+            gc.collect()
 
         mean = np.mean([env.cost for env in envs.envs])
 
