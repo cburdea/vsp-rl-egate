@@ -447,6 +447,7 @@ def train_once(model, opt, dl, epoch, step, alpha=1.0):
 
 def eval_random(epochs, envs, n_steps, n_instances, n_jobs):
     def eval_once(epoch):
+        gc.collect()
         nodes, edges = envs.reset()
         _sum = np.zeros(n_instances)
         for i in range(n_steps):
@@ -518,6 +519,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         def rollout_parallel(r):
             ret_data = []
+            gc.collect()
             datas, _ = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
             ret_data.extend(datas)
             return ret_data[0]
@@ -529,6 +531,7 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
 
         dl = DataLoader(all_datas, BATCH_SIZE, shuffle=True)
         for j in range(train_steps):
+            gc.collect()
             train_once(model, opt, dl, epoch, 0)
 
         mean = np.mean([env.cost for env in envs.envs])
