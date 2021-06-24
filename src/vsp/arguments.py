@@ -4,7 +4,7 @@ import argparse
 def args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--N_JOBS', default=100)
-    parser.add_argument('-b', '--BATCH', default=64)
+    parser.add_argument('-b', '--BATCH', default=32)
     parser.add_argument('-e', '--N_EPOCHS', default=1)
     parser.add_argument('--RANDOMIZE', default=False)
     parser.add_argument('--LR', default=3e-4)

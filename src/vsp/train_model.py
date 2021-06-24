@@ -31,7 +31,7 @@ if __name__ == "__main__":
     REMOVE_NUMBER = int(args.REMOVE_NUMBER)
 
     model = Model(input_node_dim=4, hidden_node_dim=64, input_edge_dim=3, hidden_edge_dim=16)
-    model = torch.nn.DataParallel(model)
+    #model = torch.nn.DataParallel(model)
     model.to(device)
 
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
           epochs=N_EPOCHS,
           n_rollout=N_ROLLOUT,
           rollout_steps=ROLLOUT_STEPS,
-          train_steps=4,
+          train_steps=8,
           n_remove=REMOVE_NUMBER)
 
 
