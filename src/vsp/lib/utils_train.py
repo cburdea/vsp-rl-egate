@@ -39,7 +39,7 @@ N_THREADS = int(args.N_THREADS)
 
 MAX_DIST = 600000 # Scale for normalizing
 MAX_TIME = 2280 # Scale for normalizing
-n_instances = 128
+n_instances = 64
 
 reward_norm = RunningMeanStd()
 vsp_envs = []
