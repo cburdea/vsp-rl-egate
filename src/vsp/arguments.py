@@ -4,7 +4,7 @@ import argparse
 def args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--N_JOBS', default=100)
-    parser.add_argument('-b', '--BATCH', default=16)
+    parser.add_argument('-b', '--BATCH', default=64)
     parser.add_argument('-e', '--N_EPOCHS', default=1)
     parser.add_argument('--RANDOMIZE', default=False)
     parser.add_argument('--LR', default=3e-4)
@@ -16,7 +16,7 @@ def args():
     parser.add_argument('--init_T', default=5000.0)
     parser.add_argument('--final_T', default=1.0)
     parser.add_argument('--device', default="cpu")
-    parser.add_argument('--N_THREADS', default=16)
+    parser.add_argument('--N_THREADS', default=32)
     return parser.parse_args()
 '''
 
