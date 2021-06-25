@@ -16,7 +16,7 @@ def args():
     parser.add_argument('--init_T', default=5000.0)
     parser.add_argument('--final_T', default=1.0)
     parser.add_argument('--device', default="cpu")
-    parser.add_argument('--N_THREADS', default=32)
+    parser.add_argument('--N_THREADS', default=16)
     return parser.parse_args()
 '''
 

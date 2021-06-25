@@ -510,24 +510,23 @@ def train(model, epochs, n_rollout, rollout_steps, train_steps, n_remove):
         print("> before mean cost " + ": " + str(before_mean_cost))
         before_cost = np.mean([env.cost for env in envs.envs])
 
-        all_datas = []
-        for i in range(n_rollout):
-           print("Rollout Number: ", i)
-           datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
-           all_datas.extend(datas)
-
-
-        #def rollout_parallel(r):
-        #    ret_data = []
-        #    gc.collect()
-        #    datas, _ = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
-        #    ret_data.extend(datas)
-        #    return ret_data[0]
-
         #all_datas = []
-        #pool = ThreadPool(N_THREADS)
-        #all_datas.extend(pool.map(rollout_parallel, list(range(0, n_rollout+1))))
-        #pool.close()
+        #for i in range(n_rollout):
+        #   print("Rollout Number: ", i)
+        #   datas, states = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
+        #   all_datas.extend(datas)
+
+        def rollout_parallel(r):
+            ret_data = []
+            gc.collect()
+            datas, _ = roll_out(model=model, envs=envs, states=states, rollout_steps=rollout_steps, n_jobs=N_JOBS, n_remove=n_remove, is_last=False)
+            ret_data.extend(datas)
+            return ret_data[0]
+
+        all_datas = []
+        pool = ThreadPool(2)
+        all_datas.extend(pool.map(rollout_parallel, list(range(0, n_rollout+1))))
+        pool.close()
 
         dl = DataLoader(all_datas, BATCH_SIZE, shuffle=True)
         for j in range(train_steps):
