@@ -1,0 +1,439 @@
+- - - Auslesen der IniValues-Datei abgeschlossen - - -
+
+- - - Schedule einlesen (C:\FU\Abschlussarbeiten\MA_CB----RL_Umlaufplanung\MDVS_2014G\VSP\VSPOPT\bin\Debug\Bustestset\allCosts\huis_all_costs_14.txt) - - -
+	Instanz=huis_all_costs_14.txt
+	2 von 7 Haltestellen herausgefiltert
+	Anzahl Haltestellen: 5
+	Anzahl moeglicher Depots: 1
+	0 von 5 Linien herausgefiltert
+	Anzahl Linien: 5
+	0 von 1 Fahrzeugtypen herausgefiltert
+	Anzahl Fahrzeugtypen: 1
+	Anzahl Fahrzeugtypgruppen: 1
+	Anzahl Servicefahrten: 100
+
+Dichte der Original-Verbindungsmatrix: 1
+Dichte der Verbindungsmatrix nach Vervollstaendigung: 1
+Vervollstaendigung der Matrix nicht moeglich in 0 Faellen
+
+
+Verteilung von Fahrten auf Fahrzeugtypgruppen:
+      Gruppe   #Fahrten
+	1	100
+
+	Durchschnittliche Gruppengroeße: 1
+- - - ENDE: Schedule einlesen - - -
+
+Dichte der Verbindungsmatrix: 100 %
+
+Substitution von Fahrzeugtypen - Level 1:
+======Starte Optimierung Fahrplan 1 von 1...======
+- - - Start: Exakte Optimierung durch TSN und MIP-Solver - - -
+
+- - - TSN aufbauen - - -
+	[0,1]: 100 Fahrt-Kanten und 0 Zeitfenster-Kanten eingefuegt
+Timelines Created
+	[0,1]: Reduced Matches[1332:173:105:105]
+Aggregation Completed
+Wasted WindowArcs Deleted
+	[0,1]: 140 Depot-Kanten eingefuegt
+DepotArcs Inserted
+	[0,1]: Netzwerk aufgebaut (187 Warte-, 1 Rueck-Kanten, 192 Knoten)
+Network Build
+
+Netzwerkdaten:
+	Fahrt-Kanten:		100
+	Zeitfenster-Kanten:	0
+	Verbindungs-Kanten:	105	<-- 105 <-- 173 <-- 1332
+	Linien-Kanten:		0
+	Depot-Kanten:		140
+	Warte-Kanten:		187
+	Rueck-Kanten:		1
+			      ----------
+				533
+
+	Knoten:			192
+
+- - - ENDE: TSN aufbauen - - -
+
+
+Durchschnittliche Gruppengroeße (TSN): 1
+Generiere mathematisches Modell ... fertig: 293 x 533 x 1167
+
+- - - START: Standardoptimierer - - -
+
+
+- - - ENDE: Standardoptimierer - - -
+
+Kosten: 79458,0390625
+- - - ENDE: Exakte Optimierung durch TSN und MIP-Solver - - -
+
+Anzahl Fahrzeuge in huis_all_costs_14_e_F.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_L.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_M.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_M_LH.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_X.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_X_LH.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_B.txt: 12
+Anzahl Fahrzeuge in huis_all_costs_14_e_B_LH.txt: 12
+
+
+Loesung: huis_all_costs_14_e_F.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_F.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;0
+2;8
+3;4
+Anzahl der Linienwechsel in Umlaeufen:
+1;1
+2;2
+3;4
+4;5
+Anzahl der Linien in Bloecken:
+1;33
+2;6
+3;1
+Anzahl der Linienwechsel in Bloecken:
+1;2
+2;1
+3;3
+4;1
+
+
+Loesung: huis_all_costs_14_e_L.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_L.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;0
+2;5
+3;7
+Anzahl der Linienwechsel in Umlaeufen:
+1;1
+2;2
+3;4
+4;4
+5;1
+Anzahl der Linien in Bloecken:
+1;33
+2;6
+3;1
+Anzahl der Linienwechsel in Bloecken:
+1;2
+2;1
+3;3
+4;1
+
+
+Loesung: huis_all_costs_14_e_M.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_M.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;0
+2;7
+3;5
+Anzahl der Linienwechsel in Umlaeufen:
+1;2
+2;1
+3;5
+4;3
+5;1
+Anzahl der Linien in Bloecken:
+1;33
+2;6
+3;1
+Anzahl der Linienwechsel in Bloecken:
+1;2
+2;1
+3;3
+4;1
+
+
+Loesung: huis_all_costs_14_e_M_LH.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_M_LH.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;1
+2;5
+3;3
+4;3
+Anzahl der Linienwechsel in Umlaeufen:
+1;0
+2;1
+3;6
+4;2
+5;2
+Anzahl der Linien in Bloecken:
+1;33
+2;6
+3;1
+Anzahl der Linienwechsel in Bloecken:
+1;2
+2;1
+3;3
+4;1
+
+
+Loesung: huis_all_costs_14_e_X.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_X.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;10
+2;2
+Anzahl der Linienwechsel in Umlaeufen:
+1;0
+2;2
+Anzahl der Linien in Bloecken:
+1;37
+2;3
+Anzahl der Linienwechsel in Bloecken:
+1;3
+
+
+Loesung: huis_all_costs_14_e_X_LH.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_X_LH.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;0
+2;0
+3;0
+4;7
+5;5
+Anzahl der Linienwechsel in Umlaeufen:
+1;0
+2;0
+3;1
+4;6
+5;4
+6;1
+Anzahl der Linien in Bloecken:
+1;25
+2;7
+3;7
+4;1
+Anzahl der Linienwechsel in Bloecken:
+1;7
+2;5
+3;3
+
+
+Loesung: huis_all_costs_14_e_B.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_B.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;10
+2;2
+Anzahl der Linienwechsel in Umlaeufen:
+1;0
+2;2
+Anzahl der Linien in Bloecken:
+1;37
+2;3
+Anzahl der Linienwechsel in Bloecken:
+1;3
+
+
+Loesung: huis_all_costs_14_e_B_LH.txt
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+GESAMTKOSTEN (bereinigt): 	79458,0390625
+
+	Fahrzeugkosten: 	12000
+	Operative Kosten: 	67458,0390625
+		-- Servicefahrten: 4578
+		-- Depotfahrten: 	59387,0390625
+		-- Umsetzfahrten: 	0
+		-- Wartekosten: 	3493
+
+	Virtuelle Kosten: 	0
+		-- Linien-Kanten: 	0
+		-- Zeitfenster: 	0
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+
+huis_all_costs_14_e_B_LH.txt:
+
+- - - - - - - - - - - -
+
+
+Anzahl der Linien in Umlaeufen:
+1;0
+2;0
+3;0
+4;7
+5;5
+Anzahl der Linienwechsel in Umlaeufen:
+1;0
+2;0
+3;0
+4;4
+5;6
+6;2
+Anzahl der Linien in Bloecken:
+1;23
+2;8
+3;7
+4;2
+Anzahl der Linienwechsel in Bloecken:
+1;8
+2;5
+3;4
+
+Laufzeit fuer Optimierung: 0,2981681
+Gesamtlaufzeit: 00:00:00.5800415

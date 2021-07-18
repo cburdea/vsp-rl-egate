@@ -2,7 +2,6 @@ import numpy as np
 import json
 import random
 import math
-import vrp_env
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -134,16 +133,21 @@ class Decoder(nn.Module):
 
         for i in range(n_steps):
             hx = self.cell(_input, hx)
-#                 print (hx.size(),encoder_inputs.size(),mask.size())
+            #print (hx.size(),encoder_inputs.size(),mask.size())
             p = self.attn(hx,encoder_inputs,mask)
+            #print("p ", p)
             dist = Categorical(p)
+            #print("dist ", dist)
             entropy = dist.entropy()
+            #print(entropy)
 
             if greedy:
                 _,index = p.max(dim=-1)
             else:
                 index = dist.sample()
 
+            #print(index)
+            #print()
 
             actions.append(index)
             log_p = dist.log_prob(index)
@@ -191,7 +195,7 @@ class Model(nn.Module):
         x = x[:,1:,:]
         pooled = x.mean(dim=1)
         if not greedy:
-            actions, log_p, entropy = self.decoder(x,pooled,steps)
+            actions, log_p, entropy = self.decoder(x, pooled, steps)
         else:
             actions, log_p, entropy = self.decoder.sample_greedy(x,pooled,steps,num_samples)
         v = self.v1(pooled)

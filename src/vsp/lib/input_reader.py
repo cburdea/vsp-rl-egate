@@ -201,6 +201,7 @@ def get_dist_time(i_id, j_id, connections):
 def create_vsp_env_from_file(path, start_depot=-1):
 
     timetable = create_timetable_from_file(path)
+
 #    for elem in timetable:
 #        print(tabulate(elem))
 
@@ -214,10 +215,12 @@ def create_vsp_env_from_file(path, start_depot=-1):
     hour_cost = int(timetable[2][1][5])
 
     service_trips = convert_timetable_to_df(timetable)
+    #service_trips = service_trips[:3]
+
     connections = convert_connections_to_df(timetable)
 
-    print(connections)
-    print(service_trips)
+    #print(connections)
+    #print(service_trips)
 
 
     if len(service_trips.index)>N_JOBS:
@@ -256,13 +259,16 @@ def create_vsp_env_from_file(path, start_depot=-1):
 
     # Add depot
     service_trips_depot = service_trips[1:2].copy()
-    service_trips_depot['ID'] = 0
+    service_trips_depot['ID'] = -1
     service_trips_depot = service_trips_depot.set_index('ID')
     service_trips_depot['FromStopID'] = depot_id
     service_trips_depot['ToStopID'] = depot_id
     service_trips_depot['x'] = 0
     service_trips_depot['y'] = 0
+    service_trips_depot['service_id'] = -1
     service_trips_depot = service_trips_depot.append(service_trips)
+
+    #print(service_trips_depot)
 
     # Initialize dist_time
     amount_nodes = len(jobs)
@@ -281,7 +287,6 @@ def create_vsp_env_from_file(path, start_depot=-1):
         #print('> Initialized {}% of nodes'.format(int(round((len(dist_time)/amount_nodes)*100,0))))
 
     # Initialize adjs
-    # TODO: Figure out what the purpose of adjs is
     adjs = []
 
     for i, job in enumerate(jobs):
@@ -318,7 +323,7 @@ def create_vsp_env_from_file(path, start_depot=-1):
         "depot": [0,0],
         "l_max": 0,
         "c1": 0,
-        "adjs": adjs,
+        "adjs": 0,
         "temperature": 100,
         "c2": alpha_T,
         "sa": True, #Simulated Annealing
@@ -566,21 +571,25 @@ def load_vsp_envs_from_pickle(path):
 
 def save_plan_as_pickle(path):
         plan = create_vsp_env_from_file(path)
+
         with open(parentdir + '/' + "vsp_data_100/dummy_envs/test_vsp_instance.pkl", 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
 
 def save_plans_directory_as_pickle():
-    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_100/evaluation_timetables/vehicle") if x[-4:] == ".txt"]
+    all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_100/evaluation_timetables/full") if x[-4:] == ".txt"]
+
+    all_paths.sort(key=natural_keys)
 
     for i, path in enumerate(all_paths):
+        print("Number: ", i+1)
         print('\n' + path)
-        plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_100/evaluation_timetables/vehicle/' + path)
-        with open(parentdir + '/' + "vsp_data_100/pickle_test_data/vehicle/" + path[:-4]+ '.pkl', 'wb') as output:
+        plan = create_vsp_env_from_file(parentdir + '/' + 'vsp_data_100/evaluation_timetables/full/' + path)
+        with open(parentdir + '/' + "vsp_data_100/pickle_test_data/" + path[:-4]+ '.pkl', 'wb') as output:
             pickle.dump(plan, output, pickle.HIGHEST_PROTOCOL)
 
 
 
-def multiply_instances_to_pickle( amount_nodes = "100", depot_numbers = 6, multiply_factor = 7):
+def multiply_instances_to_pickle(amount_nodes = "100", depot_numbers = 6, multiply_factor = 7):
     all_paths = [x for x in os.listdir(parentdir + '/' + "vsp_data_100/timetables/" + amount_nodes) if x[-4:] == ".txt"]
 
     counter = 0
@@ -598,8 +607,8 @@ def multiply_instances_to_pickle( amount_nodes = "100", depot_numbers = 6, multi
 
 
 if __name__ == "__main__":
-    save_plans_directory_as_pickle()
-    #print(load_vsp_envs_from_pickle("vsp_data_100/dummy_envs")[0])
+    #save_plans_directory_as_pickle()
+    print(load_vsp_envs_from_pickle("vsp_data_100/dummy_envs"))
 
     #save_plan_as_pickle("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/200/huis_200_2_1_A01.txt")
 
@@ -618,7 +627,7 @@ if __name__ == "__main__":
     #timetable = create_timetable_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
     #for elem in timetable:
     #    print(tabulate(elem))
-    #create_vsp_env_from_file("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/vsp_data_100/timetables/huis_100_2_1_A01.txt")
+    #create_vsp_env_from_file("/Users/christianburdea/Documents/Studium/Master/Masterarbeit/vsp_rl_impl/src/vsp/vsp_data_100/evaluation_timetables/full/huis_all_costs_1.txt")
 
 
     '''

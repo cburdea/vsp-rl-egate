@@ -6,6 +6,7 @@ from torch_geometric.data import Data,DataLoader
 from lib.rms import RunningMeanStd
 from arguments import args
 import argparse
+import vsp_env
 args = args()
 
 device = torch.device(args.device)
@@ -20,48 +21,56 @@ N_STEPS = int(args.N_STEPS)
 
 init_T=float(args.init_T)
 final_T=float(args.final_T)
-eval_mode = str(args.EVAL_MODE)
+RANDOMIZE = False
+
+MAX_DIST = 600000 # Scale for normalizing
+MAX_TIME = 2280 # Scale for normalizing
 
 reward_norm = RunningMeanStd()
 
 
-if eval_mode == "operational":
-    import vsp_custom_env as vsp_env
-else:
-    import vrp_env as vsp_env
-
-
-def create_env(n_jobs,_input=None, raw=None):
-
+def create_env(n_jobs, _input=None, epoch=0, raw=0):
     class Env(object):
-        def __init__(self,n_jobs,_input,raw):
+        def __init__(self, n_jobs, _input=None, raw=None, epoch=0):
             self.n_jobs = n_jobs
             if _input == None:
                 raw = 0
-                _input['c2'] = (final_T / init_T) ** (1.0 / N_STEPS)
+                _input = vsp_envs[random.randint(0, len(vsp_envs) - 1)]
+                _input['c2'] = (final_T / init_T) ** (1.0 / ROLLOUT_STEPS)
                 _input['temperature'] = init_T
-                if eval_mode == "operational":
-                    _input['vehicles'][0]['fixed_costs'] = 0
-                else:
-                    _input['vehicles'][0]['fee_per_time'] = 0
+                _input['vehicles'][0]['fee_per_dist'] = 120 / 1000
+                _input['vehicles'][0]['fee_per_time'] = 60 / 60
+                _input['vehicles'][0]['fixed_cost'] = 1000
+                _input['vehicles'][0]['tw']['end'] = 4000
+
+            if RANDOMIZE:
+                # shift = random.randint(-5,+5)
+                shift = 0
+                for i, job in enumerate(_input['jobs']):
+                    new_tw = _input["jobs"][i]["tw"]["start"] + shift
+                    _input["jobs"][i]["tw"]["start"] = new_tw
+                    _input["jobs"][i]["tw"]["end"] = new_tw
+                    if _input["jobs"][i]["service_time"] < 0:
+                        _input["jobs"][i]["service_time"] = 60
+                        print("WARNING: Invalid negative service time set to 60 minutes")
+                    if new_tw < 250 or new_tw > 1800:
+                        new_tw = random.randint(250, 1800)
+                        _input["jobs"][i]["tw"]["start"] = new_tw
+                        _input["jobs"][i]["tw"]["end"] = new_tw
 
             self.input = _input
             self.raw = raw
             dist_time = _input['dist_time']
 
-            # self.dists = np.array([[ [x['dist']/MAX_DIST] for x in row ] for row in dist_time]) Original
-            distances_custom = [item['dist'] for sublist in dist_time for item in sublist]
-            self.max_dist_custom = max(distances_custom)
-            self.dists = np.array([[[x['dist'] / self.max_dist_custom] for x in row] for row in dist_time])
+            self.dists = np.array([[[x['dist'] / MAX_DIST] for x in row] for row in dist_time])
+            self.times = np.array([[[x['time'] / MAX_TIME] for x in row] for row in dist_time])
 
         def reset(self):
             self.env = vsp_env.Env(json.dumps(self.input))
             self.mapping = {}
             self.cost = 0.0
             self.best = None
-            self.best_sol = None
             return self.get_states()
-
 
         def get_states(self):
             # {'id': 1, 'loc': 2, 'name': '1', 'x': 92, 'y': 73, 'weight': 8, 'tw': {'start': 0, 'end': 10000}, 'service_time': 0, 'job_type': 'Pickup'}
@@ -73,19 +82,81 @@ def create_env(n_jobs,_input=None, raw=None):
             self.vsp_jobs = self.input['jobs']
             depot = self.input['depot']
 
-            nodes = np.zeros((self.n_jobs + 1, 8))
+            nodes = np.zeros((self.n_jobs + 1, 4))
             edges = np.zeros((self.n_jobs + 1, self.n_jobs + 1, 1))
 
             mapping = {}
 
+            # Embedding
+            time_until_job = 0
+
             for i, (tour, tour_state) in enumerate(zip(tours, states)):
-                for j, (index, s) in enumerate(zip(tour, tour_state[1:])):
+                # print("x x x x x x x x x x x x x x x x x x x x x x x x x")
+                service_trips_tour = list(zip(tour, tour_state[1:]))
+                for j, (index, s) in enumerate(service_trips_tour):
                     job = jobs[index]
+                    solution_job = service_trips_tour[j]
+                    job_before = None
+                    solution_job_before = None
+                    job_after = None
+                    solution_job_after = None
+
+                    service_start_time = job['tw']['start']
+                    service_end_time = job['tw']['start'] + job['service_time']
+
+                    dist_until_job = s['dist'],
+                    dist_until_job = dist_until_job[0]
+
+                    if j == 0:
+                        # job_after = jobs[service_trips_tour[j + 1][0]]
+                        # solution_job_after = service_trips_tour[j + 1]
+                        time_until_job += job["tw"]["start"] - solution_job[1]["wait_time"]
+
+                    elif j == len(service_trips_tour) - 1:
+                        job_before = jobs[service_trips_tour[j - 1][0]]
+                        # solution_job_before = service_trips_tour[j - 1]
+                        time_until_job += job["tw"]["start"] - job_before["tw"]["start"] + job_before["service_time"]
+
+                    else:
+                        job_before = jobs[service_trips_tour[j - 1][0]]
+                        # job_after = jobs[service_trips_tour[j + 1][0]]
+                        # solution_job_before = service_trips_tour[j - 1]
+                        # solution_job_after = service_trips_tour[j + 1]
+                        time_until_job += job["tw"]["start"] - job_before["tw"]["start"] + job_before["service_time"]
+
                     loc = job['loc']
-                    nodes[loc, :] = [job['weight'] / 1, s['weight'] / 1, s['dist'] / self.max_dist_custom,
-                                     s['time'] / self.max_dist_custom, job['tw']['start'] / self.max_dist_custom,
-                                     job['tw']['end'] / self.max_dist_custom, s['time'] / self.max_dist_custom,
-                                     s['time_slack'] / self.max_dist_custom]
+
+                    embedding_information = [
+                        service_start_time / MAX_TIME,
+                        service_end_time / MAX_TIME,
+                        time_until_job / MAX_TIME,
+                        dist_until_job / MAX_DIST,
+                    ]
+
+                    if embedding_information[0] > 1 or embedding_information[3] > 1:
+                        print("WARNING: Normalizing durin embedding not correct\n", embedding_information)
+
+                    '''
+                    print("before: ",  solution_job_before)
+                    print("current: ", solution_job)
+                    print("after: ", solution_job_after)
+                    print()
+                    print("before: ", job_before)
+                    print("current: ", job)
+                    print("after: ", job_after)
+                    print()
+
+                    print(tabulate([[
+                                     "service_start_time",
+                                     "service_end_time",
+                                     "time_until_job",
+                                     "dist_until_job",
+                                    ],embedding_information]))
+                    print(dist_until_job)
+                    print("\n")
+                    '''
+                    nodes[loc, :] = embedding_information
+
                     mapping[loc] = (i, j)
 
             for tour in tours:
@@ -96,10 +167,16 @@ def create_env(n_jobs,_input=None, raw=None):
 
             # print(len(self.dists))
             # print(len(edges))
-            edges = np.stack([self.dists, edges], axis=-1)
-            edges = edges.reshape(-1, 2)
+            edges = np.stack([self.dists, self.times, edges], axis=-1)
+            edges = edges.reshape(-1, 3)
 
             absents = self.env.absents()
+            if len(absents) != 0:
+                print(self.vsp_tours)
+                for elem in self.vsp_jobs:
+                    print(elem)
+                print(tabulate(self.vsp_jobs))
+                print(self.vsp_tours)
             assert len(absents) == 0, "bad input"
 
             self.mapping = mapping
@@ -107,26 +184,27 @@ def create_env(n_jobs,_input=None, raw=None):
             if self.best is None or self.cost < self.best:
                 self.best = self.cost
 
-
             return nodes, edges
-
 
         def sisr_step(self):
             prev_cost = self.cost
             self.env.sisr_step()
-            nodes,edges = self.get_states()
+            nodes, edges = self.get_states()
             reward = prev_cost - self.cost
-            return nodes,edges,reward
+            return nodes, edges, reward
 
-        def step(self,to_remove):
+        def step(self, to_remove):
             prev_cost = self.cost
             self.env.step(to_remove)
-            nodes,edges = self.get_states()
+            nodes, edges = self.get_states()
             reward = prev_cost - self.cost
-            return nodes,edges,reward
+            # print(self.vsp_tours)
+            # print("Step done")
+            return nodes, edges, reward
 
-    env = Env(n_jobs,_input, raw)
+    env = Env(n_jobs, _input, epoch=epoch)
     return env
+
 
 def create_batch_env(batch_size=batch_size,n_jobs=N_JOBS, instance=None):
 
