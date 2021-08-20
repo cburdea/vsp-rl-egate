@@ -1,31 +1,15 @@
-# NeuLNS
-Neural Large Neighborhood Search
+# Solving the SDVSP with Reinforcement Learning
 
-Learn to Design Heuristics for Vehicle Routing Problem (VRP), by Deep Learning and Reinforcement Learning. This project provides the code to replicate the experiments in the paper:
 
+This implementation tackles the single-depot vehicle scheduling problem by customizing the work of Gao et al. (2020). Their work can be found with this link:
+
+  
 > <cite> Learn to Design the Heuristics for Vehicle Routing Problem [arxiv link](https://arxiv.org/abs/2002.08539)</cite>
 
-Welcome to cite our work (bib):
-
-``` 
-@misc{gao2020learn,
-    title={Learn to Design the Heuristics for Vehicle Routing Problem},
-    author={Lei Gao and Mingxiang Chen and Qichang Chen and Ganzhong Luo and Nuoyi Zhu and Zhixin Liu},
-    year={2020},
-    eprint={2002.08539},
-    archivePrefix={arXiv},
-    primaryClass={cs.NE}
-}
+Please install vsp_env-0.1.1 before training or evaluation. The needed dependencies can be also found in the requirements.txt file.
+Run train_model.py to train a vsp model, and evaluation.py to evaluate on the test data. The
+default arguments can be found in arguments.py. For example: 
+```
+python train_model.py -e 1000
 ```
 
-Please install vrp_env-0.1.1 before training or evaluation. run train_model.py
-to train a cvrp/cvrptw model, and evaluation.py to evaluate on the test data. The
-default arguments can be found in arguments.py.
-
-Example:
-```
-python train_model.py -n 99 -c 100
-```
-By 物界科技 WaterMirror Ltd. www.water-mirror.com
-
-**We Are Hiring!! ML, OR, please email at liuzhixin\@watermirror.ai**
