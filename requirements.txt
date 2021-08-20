@@ -67,8 +67,6 @@ torch-spline-conv=1.2.1=pypi_0
 tqdm=4.60.0=pypi_0
 typing-extensions=3.10.0.0=pypi_0
 urllib3=1.26.4=pypi_0
-vrp-env=0.1.1=pypi_0
-vsp-custom-env=0.1.1=pypi_0
 vsp-env=0.1.1=pypi_0
 wheel=0.36.2=pyhd3eb1b0_0
 xz=5.2.5=h7b6447c_0
