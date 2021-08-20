@@ -29,7 +29,7 @@ if __name__ == "__main__":
     N_EPOCHS = int(args.N_EPOCHS)
     REMOVE_NUMBER = int(args.REMOVE_NUMBER)
 
-    model = Model(input_node_dim=4, hidden_node_dim=16, input_edge_dim=3, hidden_edge_dim=9)
+    model = Model(input_node_dim=4, hidden_node_dim=8, input_edge_dim=3, hidden_edge_dim=9)
     #model = torch.nn.DataParallel(model)
     model.to(device)
 

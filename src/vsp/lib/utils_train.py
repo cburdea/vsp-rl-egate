@@ -8,7 +8,7 @@ import json
 import csv
 import random
 import math
-import vrp_env
+import vsp_env as vrp_env
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -49,7 +49,7 @@ MAX_DIST = 600000 # Scale for normalizing
 MAX_TIME = 2280 # Scale for normalizing
 
 
-n_instances = 128
+n_instances = 1
 
 vsp_envs = []
 
@@ -138,6 +138,15 @@ def create_env(n_jobs=N_JOBS,_input=None):
                         dist_until_job / MAX_DIST,
                     ]
 
+                    '''
+                    print(service_start_time, service_end_time, time_until_job, dist_until_job)
+                    print("service_start_time: ", service_start_time)
+                    print("service_end_time: ", service_end_time)
+                    print("time_until_job: ", time_until_job)
+                    print("dist_until_job: ", dist_until_job)
+                    print("")
+                    '''
+
                     nodes[loc, :] = embedding_information
 
                     mapping[loc] = (i,j)
@@ -190,6 +199,7 @@ def create_batch_env(batch_size=batch_size,n_jobs=N_JOBS):
             rets = [ env.reset() for env in self.envs ]
             return list(zip(*rets))
 
+        '''
         def step(self, actions):
             actions = actions.tolist()
             assert (len(actions) == len(self.envs))
@@ -203,7 +213,13 @@ def create_batch_env(batch_size=batch_size,n_jobs=N_JOBS):
             rets = pool.map(step_parallel, list_env_act)
             pool.close()
             return list(zip(*rets))
+        '''
 
+        def step(self, actions):
+            actions = actions.tolist()
+            assert (len(actions) == len(self.envs))
+            rets = [env.step(act) for env, act in zip(self.envs, actions)]
+            return list(zip(*rets))
 
         def sisr_step(self):
             rets = [env.sisr_step() for env in self.envs]
@@ -399,8 +415,8 @@ def random_init(envs,n_steps,n_instance=n_instances):
 
 def train(model,epochs,n_rollout,rollout_steps,train_steps,n_remove=10):
     initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_1')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
-    initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_2')
+    #initialize_vsp_envs('vsp_data_100/pickle_train_data/data_collection_3')
     #initialize_vsp_envs('vsp_data_100/dummy_envs')
 
     opt = torch.optim.Adam(model.parameters(),LR)

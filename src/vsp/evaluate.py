@@ -136,11 +136,12 @@ if __name__ == "__main__":
     batch_size = int(args.BATCH)
     init_T = float(args.init_T)
     n_steps=int(args.N_STEPS)
+    pre_steps = int(args.PRE_STEPS)
 
-    model = Model(input_node_dim=4, hidden_node_dim=64, input_edge_dim=3, hidden_edge_dim=16)
+    model = Model(input_node_dim=4, hidden_node_dim=16, input_edge_dim=3, hidden_edge_dim=9)
     model = model.to(device)
     #model.load_state_dict(torch.load("/home/cb/PycharmProjects/masterarbeit_cpu/src/vsp/model/final_model_operational.model"))
-    model.load_state_dict(torch.load("/Users/christianburdea/Documents/Studium/Master/Masterarbeit/vsp_rl_impl/src/vsp/model/vsp_reSteps100_rm10_model_final.model", map_location=device))
+    model.load_state_dict(torch.load("/Users/christianburdea/Documents/Studium/Master/Masterarbeit/vsp_rl_impl/src/vsp/model/experiment1/vsp_preSteps100_sa5000.0_model_final.model", map_location=device))
 
     inputs = input_reader.load_vsp_envs_from_pickle("vsp_data_100/pickle_test_data/")
 
@@ -152,6 +153,7 @@ if __name__ == "__main__":
         print('-----------------------------------------------------------------------------------------------------')
         print('Plan: {} - n_steps: {}'.format(index, n_steps))
         envs = create_batch_env(1, N_JOBS, vsp_instance)
+        print(envs)
 
         optimal_cost = exact_solution[index]
 
@@ -178,7 +180,7 @@ if __name__ == "__main__":
             count_beaten_baseline += 1
             print("-------- success --------")
 
-    log_path = parentdir + '/' + 'log_eval_steps' + str(n_steps) +'_initT'+ str(init_T) +'.csv'
+    log_path = parentdir + '/' + 'exp1_log_eval_steps' + str(pre_steps) +'_initT'+ str(init_T) +'.csv'
 
     print("\n Agent better than baseline in {} cases: ".format(count_beaten_baseline))
 
